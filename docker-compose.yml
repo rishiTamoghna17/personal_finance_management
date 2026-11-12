@@ -1,0 +1,130 @@
+# Personal finance agent - M1 stack.
+# Only Firefly III and the bridge publish ports, and only on 127.0.0.1.
+# HTTPS and the reverse proxy arrive in M7.
+
+x-bridge: &bridge
+  build: ./bridge
+  restart: unless-stopped
+  environment: &bridge-env
+    DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set in .env}
+    DJANGO_DEBUG: ${DJANGO_DEBUG:-0}
+    DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,bridge}
+    BRIDGE_API_TOKEN: ${BRIDGE_API_TOKEN:?set in .env}
+    BRIDGE_DB_HOST: postgres
+    BRIDGE_DB_PORT: "5432"
+    BRIDGE_DB_NAME: ${BRIDGE_DB_NAME:-bridge}
+    BRIDGE_DB_USER: ${BRIDGE_DB_USER:-bridge}
+    BRIDGE_DB_PASSWORD: ${BRIDGE_DB_PASSWORD:?set in .env}
+    REDIS_URL: redis://redis:6379/0
+    FIREFLY_BASE_URL: http://firefly:8080
+    FIREFLY_ACCESS_TOKEN: ${FIREFLY_ACCESS_TOKEN:-}
+    TZ: Asia/Kolkata
+  networks: [internal]
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      FIREFLY_DB_NAME: ${FIREFLY_DB_NAME:-firefly}
+      FIREFLY_DB_USER: ${FIREFLY_DB_USER:-firefly}
+      FIREFLY_DB_PASSWORD: ${FIREFLY_DB_PASSWORD:?set in .env}
+      BRIDGE_DB_NAME: ${BRIDGE_DB_NAME:-bridge}
+      BRIDGE_DB_USER: ${BRIDGE_DB_USER:-bridge}
+      BRIDGE_DB_PASSWORD: ${BRIDGE_DB_PASSWORD:?set in .env}
+      TZ: Asia/Kolkata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  firefly:
+    image: fireflyiii/core:version-6.7.9
+    restart: unless-stopped
+    stop_signal: SIGINT
+    environment:
+      APP_KEY: ${FIREFLY_APP_KEY:?set in .env}
+      APP_URL: ${FIREFLY_APP_URL:-http://localhost:8080}
+      SITE_OWNER: ${FIREFLY_SITE_OWNER:-owner@localhost}
+      DEFAULT_LANGUAGE: en_GB
+      DEFAULT_LOCALE: en_IN
+      TZ: Asia/Kolkata
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: ${FIREFLY_DB_NAME:-firefly}
+      DB_USERNAME: ${FIREFLY_DB_USER:-firefly}
+      DB_PASSWORD: ${FIREFLY_DB_PASSWORD:?set in .env}
+      STATIC_CRON_TOKEN: ${FIREFLY_STATIC_CRON_TOKEN:?set in .env}
+      TRUSTED_PROXIES: ""
+    volumes:
+      - firefly_upload:/var/www/html/storage/upload
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  firefly-cron:
+    image: alpine:3.22
+    restart: unless-stopped
+    init: true
+    environment:
+      STATIC_CRON_TOKEN: ${FIREFLY_STATIC_CRON_TOKEN:?set in .env}
+      TZ: Asia/Kolkata
+    command:
+      - sh
+      - -c
+      - >-
+        apk add --no-cache tzdata >/dev/null &&
+        (ln -sf /usr/share/zoneinfo/$$TZ /etc/localtime || true) &&
+        echo "0 3 * * * wget -qO- http://firefly:8080/api/v1/cron/$$STATIC_CRON_TOKEN; echo" | crontab - &&
+        exec crond -f -L /dev/stdout
+    networks: [internal]
+    depends_on: [firefly]
+
+  bridge:
+    <<: *bridge
+    command: >-
+      sh -c "python manage.py migrate --noinput &&
+      gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --access-logfile -"
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  worker:
+    <<: *bridge
+    command: celery -A config worker --loglevel=INFO --concurrency=2
+
+  beat:
+    <<: *bridge
+    command: celery -A config beat --loglevel=INFO --schedule=/tmp/celerybeat-schedule
+
+volumes:
+  postgres_data:
+  firefly_upload:
+
+networks:
+  internal:
+    driver: bridge

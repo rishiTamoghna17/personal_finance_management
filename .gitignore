@@ -1,0 +1,19 @@
+# Secrets and personal data
+.env
+.env.*
+!.env.example
+accounts.yaml
+*.pdf
+*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+*.sqlite3
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

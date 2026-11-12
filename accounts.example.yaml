@@ -1,0 +1,37 @@
+# Copy to accounts.yaml (gitignored) and fill in your real accounts.
+# Then run:  docker compose run --rm -T bridge python manage.py seed_firefly - < accounts.yaml
+#
+# Rules:
+# - Every amount is a QUOTED string in rupees, e.g. "12345.67". Unquoted
+#   numbers are rejected, so no amount ever passes through a float.
+# - last4 is the last four digits only. Never put a full account or card number here.
+# - Names must be unique. Re-running the command skips names that already exist.
+
+opening_balance_date: "2026-11-01"
+
+accounts:
+  # kind: bank  ->  Firefly asset account
+  # role: savings | salary | current
+  - name: "Example Bank Savings"
+    kind: bank
+    role: savings
+    last4: "0000"
+    opening_balance: "0.00"
+
+  # kind: credit_card  ->  Firefly asset account with the credit-card role
+  # outstanding is what you owed on opening_balance_date, as a positive amount.
+  # A credit limit is not an asset and is not recorded.
+  - name: "Example Credit Card"
+    kind: credit_card
+    last4: "0000"
+    outstanding: "0.00"
+    next_payment_due: "2026-12-05"
+
+  # kind: loan  ->  Firefly liability account of type loan
+  # status: planned  -> listed by the command but NOT created in Firefly
+  # status: active   -> created; outstanding is the principal still owed
+  - name: "Example Bike Loan"
+    kind: loan
+    status: planned
+    outstanding: "0.00"
+    interest_rate_percent: "0.00"
