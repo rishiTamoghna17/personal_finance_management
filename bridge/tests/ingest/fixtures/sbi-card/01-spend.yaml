@@ -1,0 +1,11 @@
+# Owner's real SMS (screenshot), masked: card digits changed.
+sender: JD-SBICRD-S
+text: "Rs.12,574.00 spent on your SBI Credit Card ending 1006 at FlipkartInternetPVT on 09/10/26. Trxn. not done by you? Report at https://sbicard.com/Dispute"
+expect:
+  status: parsed
+  amount_paise: 1257400
+  direction: debit
+  channel: card
+  account_last4: "1006"
+  counterparty: FlipkartInternetPVT
+  date: "2026-10-09"

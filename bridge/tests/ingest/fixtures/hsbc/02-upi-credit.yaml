@@ -1,5 +1,5 @@
 # Owner's real SMS, masked: account digits, UPI ID and reference changed.
-sender: SENDER_ID_NEEDED_HSBC
+sender: JM-HSBCIN-S
 text: "Your HSBC Acc XXXXXX1002 is credited for INR 5000.00 on 31-Oct-26 from abcd@oksbi. UPI Ref No 100000000002"
 expect:
   status: parsed

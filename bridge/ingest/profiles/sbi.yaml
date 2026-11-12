@@ -1,0 +1,22 @@
+# SBI bank account, UPI alerts. Written from the owner's real SMS (2026-11-13). Add a pattern only from a real sample.
+id: sbi
+account_kind: bank
+# Sender seen on the owner's phone: JX-SBIUPI-S (2026-11-13). SBI may use other headers for non-UPI alerts.
+senders: [SBIUPI]
+date_formats: ["%d%b%y"]
+patterns:
+  # Mandates set up or cancelled: no money moves when the SMS is sent.
+  - id: mandate-created
+    type: ignore
+    reason: UPI mandate created
+    match: 'UPI-Mandate successfully created towards'
+  - id: mandate-cancelled
+    type: ignore
+    reason: UPI mandate cancelled
+    match: 'UPI-Mandate is successfully cancelled towards'
+  # "Dear UPI user A/C X1234 debited by 14.00 on date 01Nov26 trf to ROY STORE Refno 123456789012 If not u? ..."
+  # No currency marker before the amount.
+  - id: upi-debit
+    direction: debit
+    channel: upi
+    match: 'Dear UPI user A/C X+(?P<account>\d{4}) debited by (?P<amount>[\d,]+(?:\.\d+)?) on date (?P<date>\d{1,2}[A-Za-z]{3}\d{2}) trf to (?P<counterparty>.+?) Refno (?P<ref>\d+)'

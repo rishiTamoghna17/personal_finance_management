@@ -1,0 +1,5 @@
+# Owner's real SMS (screenshot), masked: code changed. Must be dropped.
+sender: JX-SBIUPI-S
+text: "100002 is your OTP for setting MPIN to your A/C. Valid for 10 mins. Do not share this OTP with anyone. -SBI"
+expect:
+  status: dropped

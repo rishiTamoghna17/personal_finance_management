@@ -1,0 +1,12 @@
+# Owner's real SMS (screenshot), masked: account digits (three, as ICICI shows them) and reference changed.
+sender: AX-ICICIT-S
+text: "ICICI Bank Acct XX101 debited for Rs 68.00 on 09-Aug-26; ADDA MAHAL FOOD credited. UPI:100000000006. Call 18002662 for dispute. SMS BLOCK 101 to 9215676766."
+expect:
+  status: parsed
+  amount_paise: 6800
+  direction: debit
+  channel: upi
+  account_last4: "101"
+  counterparty: ADDA MAHAL FOOD
+  reference: "100000000006"
+  date: "2026-08-09"

@@ -1,0 +1,7 @@
+# Owner's real SMS (screenshot), masked: account digits and reference changed.
+sender: JM-HSBCIN-S
+text: "INR 99.00 is paid from HSBC account XXXXXX1002 to One Mobikwik Systems Limited on 12-Nov-26 with ref 100000000012. If this is not done by you, call 18002673456 to report."
+expect:
+  status: parsed
+  amount_paise: 9900
+  counterparty: One Mobikwik Systems Limited

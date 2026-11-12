@@ -1,0 +1,6 @@
+# Owner's real SMS (screenshot), masked: account digits and mandate number changed.
+sender: JX-SBIUPI-S
+text: "Your UPI-Mandate is successfully cancelled towards Google Play for 59.00 from A/c No.XXXXXX1005. UMN:00000000000000000000000000000000@oksbi -SBI"
+expect:
+  status: ignored
+  reason: UPI mandate cancelled

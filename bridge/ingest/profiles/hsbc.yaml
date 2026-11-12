@@ -1,8 +1,8 @@
 # HSBC. Written from the owner's real SMS (2026-11-13). Add a pattern only from a real sample.
 id: hsbc
 account_kind: bank
-# TODO: replace with the real DLT header from the owner.
-senders: [SENDER_ID_NEEDED_HSBC]
+# Sender seen on the owner's phone: JM-HSBCIN-S (2026-11-13).
+senders: [HSBCIN]
 date_formats: ["%d-%b-%y"]
 patterns:
   # "INR 14.00 is paid from HSBC account XXXXXX1234 to <payee> on 12-Nov-26 with ref <12 digits>."

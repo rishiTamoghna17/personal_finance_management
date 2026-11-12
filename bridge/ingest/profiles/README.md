@@ -27,7 +27,7 @@ Named groups the parser understands:
 | Group | Meaning |
 | --- | --- |
 | `amount` | Required for transactions. Indian grouping and a trailing `/-` are fine. |
-| `account` | Required. Only the last four digits are kept. |
+| `account` | Required. The last four digits are kept; a bank that shows only three (ICICI `XX378`) is matched against accounts whose last four end with them. |
 | `date` | Optional. Parsed with `date_formats`; otherwise the SMS time is used. |
 | `time` | Optional, with `date`: `HH:MM:SS` or `HH:MM`, Indian time. |
 | `ref` | UPI RRN, IMPS/NEFT UTR, or other bank reference. Drives dedup. |

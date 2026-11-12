@@ -166,3 +166,18 @@ def test_money_from_someone_else_is_income(send, settings):
     settings.INGEST_OWN_VPAS = {"me@upi"}
     send("VM-TESTBK", credit(acct="2222", ref="999999999999", vpa="friend@upi"))
     assert not LedgerEntry.objects.get().awaiting_partner
+
+
+def test_three_digit_account_mask_matches_by_suffix(firefly, settings, tmp_path, django_capture_on_commit_callbacks):
+    from ingest import parser
+
+    (tmp_path / "three.yaml").write_text(
+        "id: three\naccount_kind: bank\nsenders: [THREEB]\npatterns:\n"
+        "  - id: d\n    direction: debit\n    match: 'THREE: a/c XX(?P<account>\\d{3}) debited (?P<amount>[\\d.]+)'\n"
+    )
+    settings.INGEST_PROFILE_DIRS = settings.INGEST_PROFILE_DIRS + [tmp_path]
+    parser.clear_cache()
+    ingest(django_capture_on_commit_callbacks, "VM-THREEB", "THREE: a/c XX222 debited 5.00")  # Bank B is XX2222
+    assert LedgerEntry.objects.get().source_account_id == ACC_B
+    ingest(django_capture_on_commit_callbacks, "VM-THREEB", "THREE: a/c XX333 debited 5.00", 1)
+    assert ReviewItem.objects.get().reason == "unknown_account"

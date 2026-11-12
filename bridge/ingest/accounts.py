@@ -45,9 +45,17 @@ def resolve(last4):
     """Return (OwnAccount, "") or (None, reason). Raises FireflyError if Firefly is down."""
     if not last4:
         return None, "no account digits"
-    matches = _directory().get(last4)
+
+    def lookup(directory):
+        if len(last4) == 4:
+            return directory.get(last4)
+        # Three digits (e.g. ICICI "XX378"): every account whose last four end with them.
+        found = [acct for key, accts in directory.items() if key.endswith(last4) for acct in accts]
+        return found or None
+
+    matches = lookup(_directory())
     if matches is None:
-        matches = _directory(refresh=True).get(last4)  # an account may have been added since
+        matches = lookup(_directory(refresh=True))  # an account may have been added since
     if not matches:
         return None, f"no Firefly account ends in {last4}"
     if len(matches) > 1:

@@ -1,0 +1,6 @@
+# Owner's real SMS (screenshot).
+sender: AX-ICICIT-S
+text: "Calls from ICICI Bank starting with 1600 are official and legitimate. This is as per the Telecom Regulatory Authority of India (TRAI) guidelines."
+expect:
+  status: ignored
+  reason: informational notice

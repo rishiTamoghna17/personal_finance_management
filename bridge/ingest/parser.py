@@ -167,8 +167,9 @@ def _paise(text):
 
 
 def _last4(text):
+    """Last four digits; some banks (e.g. ICICI "XX378") show only three, which are kept as three."""
     digits = "".join(ch for ch in text or "" if ch.isdigit())
-    return digits[-4:] if len(digits) >= 4 else ""
+    return digits[-4:] if len(digits) >= 3 else ""
 
 
 def _occurred_at(groups, profile, sent_at):

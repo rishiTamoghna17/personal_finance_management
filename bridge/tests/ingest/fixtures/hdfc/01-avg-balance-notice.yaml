@@ -1,5 +1,5 @@
 # Owner's real SMS, masked: account digits changed.
-sender: SENDER_ID_NEEDED_HDFC
+sender: JM-HDFCBK-S
 text: "Alert! HDFC Bank A/c XXXX1001 Avg. bal. maintained as on 10-NOV-26: Rs 859.20 Avoid non-maintenance charges by maintaining Avg. bal. of Rs 5000 in Nov-2026"
 expect:
   status: ignored

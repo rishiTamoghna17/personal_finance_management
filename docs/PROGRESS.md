@@ -157,28 +157,29 @@ docs/sms-forwarder.md                        # phone setup
 - YAML bank profiles with validation (card profiles may not capture a balance). `bridge/ingest/profiles/` is empty: no real bank format has been written.
 - Reconciliation: reference, then account + amount + 30-minute window, then transfers between own accounts; ambiguous → review; 10-minute settle window before posting; reversals cancel an unposted debit.
 - Celery: `process_raw(id)` and `post_entry(id)` take ids only; `sweep` runs every minute from beat.
-- 195 tests pass (pipeline + 12 real-profile fixtures), using a fictional "Test Bank" and "Test Card" (`bridge/tests/ingest/profiles/`, clearly marked as not real formats).
+- 210 tests pass (pipeline + 26 real-profile fixtures), using a fictional "Test Bank" and "Test Card" (`bridge/tests/ingest/profiles/`, clearly marked as not real formats).
 - Live run on a throwaway Firefly 6.7.9 with test profiles: OTP dropped and absent from the bridge database and logs; re-delivery stored once; a UPI debit posted once; an own transfer posted as one transfer; a card spend reported by two messages posted once; a card bill payment posted as a transfer to the card; an unknown sender went to review; Firefly's balances, spend (₹1,749.50) and net worth (₹8,250.50) matched hand calculation; the bank-reported balance matched Firefly's. Throwaway instance deleted.
 - Phone setup guide: docs/sms-forwarder.md.
 
 ### Profiles from the owner's samples (2026-11-13)
 | Profile | Patterns | Sender ID |
 | --- | --- | --- |
-| hdfc | UPI credit; average balance notice (ignored, not recorded as a balance) | needed |
-| hsbc | "is paid from HSBC account" debit; UPI credit | needed |
-| axis-card | spend (with time); payment received (card side of a bill payment); statement generated, bill due reminder, declined (all ignored); OTP sample confirmed dropped | needed |
+| hdfc | UPI credit; average balance notice (ignored, not recorded as a balance) | HDFCBK (JM-HDFCBK-S) |
+| hsbc | "is paid from HSBC account" debit; UPI credit | HSBCIN (JM-HSBCIN-S) |
+| axis-card | spend (with time); payment received (card side of a bill payment); statement generated, bill due reminder, declined (all ignored); OTP sample confirmed dropped | AXISBK (JD-AXISBK-S) |
+| sbi | UPI debit; UPI mandate created / cancelled (ignored); MPIN OTP confirmed dropped | SBIUPI (JX-SBIUPI-S) |
+| icici | UPI debit; IMPS credit; informational notice (ignored). Shows only 3 account digits | ICICIT (AX-ICICIT-S) |
+| sbi-card | spend; recurring e-mandate debit (with time); credit limit alert (ignored, limit never read as balance) | SBICRD (JD-SBICRD-S) |
 
-Fixtures in `bridge/tests/ingest/fixtures/`, masked again (digits, UPI IDs, references, links and the OTP code changed). Profiles use placeholder sender IDs until the owner sends the real ones; real messages meanwhile go to review as `unknown_sender` and can be re-parsed.
+Fixtures in `bridge/tests/ingest/fixtures/`, masked again (digits, UPI IDs, references, links and the OTP code changed). Real sender IDs set 2026-11-13. Accounts shown with only three digits (ICICI) match Firefly accounts whose last four end with them; two such accounts → review. Tata Neu (TNBPAY) SBI Card reminders are not forwarded. AXISBK may also carry Axis bank-account SMS; those patterns would go in the same profile.
 
 Added with these samples:
 - Parser reads a `time` group (Axis spends carry HH:MM:SS).
 - `BRIDGE_OWN_VPAS` in `.env`: money to or from the owner's own UPI IDs is an own transfer (waits for its other half; unpaired → review), never income or spend. Two IDs from the samples are set.
 
 ### Not done
-- Sender IDs for HDFC, HSBC and the Axis card.
-- More samples: credits, card spends, card bill payment (both sides), refund, failed payment, balance alert, one OTP; and anything at all from ICICI and SBI.
-- Firefly accounts: the samples show HDFC XX1151, HSBC XX9006 and Axis cards XX1233 and XX9315, but Firefly has ICICI Bank (5000) and one Axis card as 0000. HDFC, HSBC and the second Axis card need adding with 2026-11-01 balances, and the Axis card's last4 needs correcting.
-- SBI: the owner's UPI ID on SBI (@oksbi) sent money to HSBC, so an SBI account exists but is not tracked; such transfers will sit in review until it is added.
+- More samples still useful: a bank-side card bill payment (e.g. SBI or ICICI paying the Axis or SBI card), SBI and HDFC credits, an HDFC debit, a refund, a failed payment, a balance alert.
+- Firefly accounts (owner will add all accounts when the build is finished; until then SMS for missing accounts go to review as `unknown_account` and can be re-parsed): the samples show HDFC XX1151, HSBC XX9006, SBI X3727, ICICI XX378 (last 3 only), Axis cards XX1233 and XX9315, and SBI Card 5173, but Firefly has ICICI Bank (5000, which does not end in 378) and one Axis card as 0000. HDFC, HSBC and the second Axis card need adding with 2026-11-01 balances, and the Axis card's last4 needs correcting.
 - Phone setup: reachability decided (home Wi-Fi, bridge on 192.168.0.106:8000, checked from the LAN address 2026-11-13). Sender IDs still come from the samples.
 - Tests with the owner's real samples (SPEC: unit tests for every bank profile).
 

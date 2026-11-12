@@ -1,0 +1,12 @@
+# Owner's real SMS (screenshot), masked: account digits and reference changed.
+sender: JX-SBIUPI-S
+text: "Dear UPI user A/C X1005 debited by 14.00 on date 01Nov26 trf to ROY STORE Refno 100000000005 If not u? call-1800111109 for other services-18001234-SBI"
+expect:
+  status: parsed
+  amount_paise: 1400
+  direction: debit
+  channel: upi
+  account_last4: "1005"
+  counterparty: ROY STORE
+  reference: "100000000005"
+  date: "2026-11-01"

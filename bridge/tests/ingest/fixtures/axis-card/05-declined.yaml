@@ -1,5 +1,5 @@
 # Owner's real SMS, masked: card digits and link changed.
-sender: SENDER_ID_NEEDED_AXISCC
+sender: JD-AXISBK-S
 text: "Transaction on Axis Bank Credit Card no. XX1003 has been declined as contactless usage is not enabled. Enable via Control Center on https://ccm.axis.bank.in/AXISBK/XXXXXXXX or call 18001035577 - Axis Bank"
 expect:
   status: ignored

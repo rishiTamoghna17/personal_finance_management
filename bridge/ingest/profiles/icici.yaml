@@ -1,0 +1,23 @@
+# ICICI Bank account. Written from the owner's real SMS (2026-11-13). Add a pattern only from a real sample.
+# ICICI shows only the last THREE account digits ("XX378").
+id: icici
+account_kind: bank
+# Sender seen on the owner's phone: AX-ICICIT-S (2026-11-13).
+senders: [ICICIT]
+date_formats: ["%d-%b-%y"]
+patterns:
+  - id: info-notice
+    type: ignore
+    reason: informational notice
+    match: 'Calls from ICICI Bank starting with \d+ are official'
+  # "ICICI Bank Acct XX378 debited for Rs 68.00 on 09-Aug-26; ADDA MAHAL FOOD credited. UPI:123456789012. Call ..."
+  - id: upi-debit
+    direction: debit
+    channel: upi
+    match: 'ICICI Bank Acct X+(?P<account>\d{3,4}) debited for Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) on (?P<date>\d{2}-[A-Za-z]{3}-\d{2}); (?P<counterparty>.+?) credited\. UPI:(?P<ref>\d+)'
+  # "ICICI Bank Account XX378 is credited with Rs 1.00 on 03-Sep-26 by Account linked to mobile number XXXXX12345. IMPS Ref. no. 123456789012."
+  # The payer is described only by a partial mobile number, which is not captured.
+  - id: imps-credit
+    direction: credit
+    channel: imps
+    match: 'ICICI Bank Account X+(?P<account>\d{3,4}) is credited with Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) on (?P<date>\d{2}-[A-Za-z]{3}-\d{2}) by .+? IMPS Ref\. no\. (?P<ref>\d+)'

@@ -1,9 +1,8 @@
 # HDFC Bank. Written from the owner's real SMS (2026-11-13). Add a pattern only from a real sample.
 id: hdfc
 account_kind: bank
-# TODO: replace with the real DLT header (the 6 letters in e.g. "XX-ABCDEF-S") from the owner.
-# Until then, real HDFC messages go to review as unknown_sender and can be re-parsed.
-senders: [SENDER_ID_NEEDED_HDFC]
+# Sender seen on the owner's phone: JM-HDFCBK-S (2026-11-13).
+senders: [HDFCBK]
 date_formats: ["%d-%b-%y", "%d-%m-%y"]
 patterns:
   # Monthly average balance notice. An average is not the current balance, so it is not recorded.

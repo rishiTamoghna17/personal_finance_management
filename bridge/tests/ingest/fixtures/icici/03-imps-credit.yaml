@@ -1,0 +1,12 @@
+# Owner's real SMS (screenshot), masked: account digits, mobile digits and reference changed.
+sender: AX-ICICIT-S
+text: "ICICI Bank Account XX101 is credited with Rs 1.00 on 03-Sep-26 by Account linked to mobile number XXXXX00000. IMPS Ref. no. 100000000008."
+expect:
+  status: parsed
+  amount_paise: 100
+  direction: credit
+  channel: imps
+  account_last4: "101"
+  counterparty: ""
+  reference: "100000000008"
+  date: "2026-09-03"

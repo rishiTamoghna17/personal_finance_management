@@ -1,0 +1,6 @@
+# Owner's real SMS (screenshot). The "Balance Limit" must not be read as a balance.
+sender: JD-SBICRD-S
+text: "Alert! You have consumed 80% Credit Limit. Balance Limit: Rs.1,884.04. Avoid trxn. decline with Overlimit facility. Visit https://sbicard.com/ovl. T&C-SBI Card"
+expect:
+  status: ignored
+  reason: credit limit alert (a limit is not a balance)

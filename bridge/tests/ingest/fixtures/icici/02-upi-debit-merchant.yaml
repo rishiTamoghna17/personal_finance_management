@@ -1,0 +1,8 @@
+# Owner's real SMS (screenshot), masked: account digits and reference changed.
+sender: AX-ICICIT-S
+text: "ICICI Bank Acct XX101 debited for Rs 189.00 on 07-Sep-26; RELIANCE JIO IN credited. UPI:100000000007. Call 18002662 for dispute. SMS BLOCK 101 to 9215676766."
+expect:
+  status: parsed
+  amount_paise: 18900
+  counterparty: RELIANCE JIO IN
+  reference: "100000000007"

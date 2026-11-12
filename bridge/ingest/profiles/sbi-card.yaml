@@ -1,0 +1,23 @@
+# SBI credit card. Written from the owner's real SMS (2026-11-13). Add a pattern only from a real sample.
+# The "Balance Limit" in limit alerts is never captured: a credit limit is not money you have (rule 8).
+id: sbi-card
+account_kind: card
+# Sender seen on the owner's phone: JD-SBICRD-S (2026-11-13).
+senders: [SBICRD]
+date_formats: ["%d/%m/%y", "%d-%b-%Y"]
+patterns:
+  - id: limit-alert
+    type: ignore
+    reason: credit limit alert (a limit is not a balance)
+    match: 'You have consumed \d+% Credit Limit'
+  # "Rs.12,574.00 spent on your SBI Credit Card ending 1234 at FlipkartInternetPVT on 09/10/26. Trxn. not done by you? ..."
+  - id: spend
+    direction: debit
+    channel: card
+    match: 'Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) spent on your SBI Credit Card ending (?P<account>\d{4}) at (?P<counterparty>.+?) on (?P<date>\d{2}/\d{2}/\d{2})'
+  # "Transaction Successful! Rs.69.00 has been debited to your SBI Credit Card XX1234 against recurring e-mandate ...
+  #  Merchant: AMAZON SiHub ID: <id> Trxn. Ref. No.: <12 digits> Date: 06-Nov-2026. Time: 01:43:19 ..."
+  - id: emandate-debit
+    direction: debit
+    channel: card
+    match: 'Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) has been debited to your SBI Credit Card X+(?P<account>\d{4}) against recurring e-mandate.*? Merchant: (?P<counterparty>.+?) SiHub ID: \S+ Trxn\. Ref\. No\.: (?P<ref>\w+) Date: (?P<date>\d{2}-[A-Za-z]{3}-\d{4})\. Time: (?P<time>\d{2}:\d{2}:\d{2})'

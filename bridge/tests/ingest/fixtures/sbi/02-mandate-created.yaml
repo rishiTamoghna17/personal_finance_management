@@ -1,0 +1,6 @@
+# Owner's real SMS (screenshot).
+sender: JX-SBIUPI-S
+text: "UPI-Mandate successfully created towards Google Play for Rs149.00 -SBI"
+expect:
+  status: ignored
+  reason: UPI mandate created

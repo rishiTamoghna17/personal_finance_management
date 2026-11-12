@@ -1,0 +1,13 @@
+# Owner's real SMS (screenshot), masked: card digits, SiHub ID and reference changed.
+sender: JD-SBICRD-S
+text: "Transaction Successful! Rs.69.00 has been debited to your SBI Credit Card XX1006 against recurring e-mandate registered by you at merchant site. Details: Merchant: AMAZON SiHub ID: XXXXXXXXXX Trxn. Ref. No.: 100000000009 Date: 06-Nov-2026. Time: 01:43:19 Manage E-mandate at www.sbicard.com/emandates"
+expect:
+  status: parsed
+  amount_paise: 6900
+  direction: debit
+  channel: card
+  account_last4: "1006"
+  counterparty: AMAZON
+  reference: "100000000009"
+  date: "2026-11-06"
+  time: "01:43:19"

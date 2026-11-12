@@ -1,9 +1,11 @@
 # Axis Bank credit cards. Written from the owner's real SMS (2026-11-13). Add a pattern only from a real sample.
 # "Avl limit" is never captured: a credit limit is not money you have (rule 8).
 id: axis-card
+# AXISBK may also send Axis *bank account* SMS. One header maps to one profile, so if the owner
+# adds an Axis bank account, its patterns go in this file too (and this profile becomes "axis").
 account_kind: card
-# TODO: replace with the real DLT header from the owner.
-senders: [SENDER_ID_NEEDED_AXISCC]
+# Sender seen on the owner's phone: JD-AXISBK-S (2026-11-13).
+senders: [AXISBK]
 date_formats: ["%d-%m-%y"]
 patterns:
   # Bill due reminder. Not a payment. (The due date may feed due-date alerts in M5/M6.)

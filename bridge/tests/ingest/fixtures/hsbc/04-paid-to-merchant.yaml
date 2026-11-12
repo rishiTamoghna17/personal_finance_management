@@ -1,0 +1,8 @@
+# Owner's real SMS (screenshot), masked: account digits and reference changed.
+sender: JM-HSBCIN-S
+text: "INR 200.00 is paid from HSBC account XXXXXX1002 to S Tanis Kitchen on 10-Nov-26 with ref 100000000010. If this is not done by you, call 18002673456 to report."
+expect:
+  status: parsed
+  amount_paise: 20000
+  counterparty: S Tanis Kitchen
+  date: "2026-11-10"
