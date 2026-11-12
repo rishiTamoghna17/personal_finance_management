@@ -1,0 +1,14 @@
+# Owner's real SMS, masked: card digits changed. Line breaks and trailing spaces kept.
+# The available limit is deliberately not captured.
+sender: SENDER_ID_NEEDED_AXISCC
+text: "Spent INR 274.77 \nusing Axis Bank Credit Card no. XX1003 on 21-10-26 20:24:43 IST at \nZOMATO CYBS. \nAvl limit: INR 36045.59. Not you? SMS BLOCK 1003 to +919951860002."
+expect:
+  status: parsed
+  amount_paise: 27477
+  direction: debit
+  channel: card
+  account_last4: "1003"
+  counterparty: ZOMATO CYBS
+  balance_paise: null
+  date: "2026-10-21"
+  time: "20:24:43"

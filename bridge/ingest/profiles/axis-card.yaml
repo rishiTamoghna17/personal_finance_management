@@ -1,0 +1,33 @@
+# Axis Bank credit cards. Written from the owner's real SMS (2026-11-13). Add a pattern only from a real sample.
+# "Avl limit" is never captured: a credit limit is not money you have (rule 8).
+id: axis-card
+account_kind: card
+# TODO: replace with the real DLT header from the owner.
+senders: [SENDER_ID_NEEDED_AXISCC]
+date_formats: ["%d-%m-%y"]
+patterns:
+  # Bill due reminder. Not a payment. (The due date may feed due-date alerts in M5/M6.)
+  - id: bill-due-reminder
+    type: ignore
+    reason: card bill due reminder
+    match: 'Payment of INR [\d,]+(?:\.\d+)? for Axis Bank Credit Card no\. X+\d{4} is due on'
+  - id: statement-generated
+    type: ignore
+    reason: card statement generated
+    match: 'Your statement for Axis Bank Credit Card no\. X+\d{4} is generated'
+  - id: declined
+    type: ignore
+    reason: declined transaction
+    match: 'Transaction on Axis Bank Credit Card no\. X+\d{4} has been declined'
+  # "Spent INR 274.77 using Axis Bank Credit Card no. XX1234 on 21-10-26 20:24:43 IST at ZOMATO CYBS. Avl limit: ..."
+  - id: spend
+    direction: debit
+    channel: card
+    match: 'Spent INR (?P<amount>[\d,]+(?:\.\d+)?) using Axis Bank Credit Card no\. X+(?P<account>\d{4}) on (?P<date>\d{2}-\d{2}-\d{2}) (?P<time>\d{2}:\d{2}:\d{2}) IST at (?P<counterparty>.+?)\. Avl limit'
+  # "Payment of INR 99 has been received towards your Axis Bank Credit Card XX1234 on 12-11-26 - Axis Bank"
+  # The card side of a bill payment: paired with the bank-side debit, never counted as income.
+  - id: payment-received
+    direction: credit
+    channel: other
+    kind: card_payment
+    match: 'Payment of INR (?P<amount>[\d,]+(?:\.\d+)?) has been received towards your Axis Bank Credit Card X+(?P<account>\d{4}) on (?P<date>\d{2}-\d{2}-\d{2})'

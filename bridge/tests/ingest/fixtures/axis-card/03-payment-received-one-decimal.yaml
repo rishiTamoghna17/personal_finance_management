@@ -1,0 +1,10 @@
+# Owner's real SMS, masked: card digits changed. Note the amount has one decimal place.
+sender: SENDER_ID_NEEDED_AXISCC
+text: "Payment of INR 27740.1 has been received towards your Axis Bank Credit Card XX1003 on 31-10-26 - Axis Bank"
+expect:
+  status: parsed
+  amount_paise: 2774010
+  direction: credit
+  kind: card_payment
+  account_last4: "1003"
+  date: "2026-10-31"

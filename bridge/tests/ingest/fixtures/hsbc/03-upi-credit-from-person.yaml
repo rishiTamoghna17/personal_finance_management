@@ -1,0 +1,10 @@
+# Owner's real SMS, masked: account digits, UPI ID and reference changed.
+sender: SENDER_ID_NEEDED_HSBC
+text: "Your HSBC Acc XXXXXX1002 is credited for INR 1000.00 on 30-Oct-26 from efgh123@ybl. UPI Ref No 100000000003"
+expect:
+  status: parsed
+  amount_paise: 100000
+  direction: credit
+  vpa: efgh123@ybl
+  reference: "100000000003"
+  date: "2026-10-30"

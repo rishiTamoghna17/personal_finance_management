@@ -12,10 +12,10 @@ opening_balance_date: "2026-11-01"
 accounts:
   # kind: bank  ->  Firefly asset account
   # role: savings | salary | current
-  - name: "Example Bank Savings"
+  - name: "ICICI"
     kind: bank
     role: savings
-    last4: "0000"
+    last4: "5000"
     opening_balance: "0.00"
 
   # kind: credit_card  ->  Firefly asset account with the credit-card role
@@ -30,8 +30,8 @@ accounts:
   # kind: loan  ->  Firefly liability account of type loan
   # status: planned  -> listed by the command but NOT created in Firefly
   # status: active   -> created; outstanding is the principal still owed
-  - name: "Example Bike Loan"
-    kind: loan
-    status: planned
-    outstanding: "0.00"
-    interest_rate_percent: "0.00"
+  # - name: "Example Bike Loan"
+  #   kind: loan
+  #   status: planned
+  #   outstanding: "10.00"
+  #   interest_rate_percent: "0.00"

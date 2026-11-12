@@ -1,0 +1,10 @@
+# Optional: lets a phone on the home Wi-Fi reach the bridge (owner's choice, 2026-11-13).
+# Enabled by COMPOSE_FILE in .env. Remove those two lines from .env to turn it off.
+# Traffic is plain HTTP on the home network; the token and HMAC signature still apply.
+# Firefly stays on 127.0.0.1.
+services:
+  bridge:
+    ports:
+      - "${BRIDGE_LAN_IP:?set BRIDGE_LAN_IP in .env}:8000:8000"
+    environment:
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,bridge,${BRIDGE_LAN_IP}

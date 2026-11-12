@@ -1,0 +1,18 @@
+# HDFC Bank. Written from the owner's real SMS (2026-11-13). Add a pattern only from a real sample.
+id: hdfc
+account_kind: bank
+# TODO: replace with the real DLT header (the 6 letters in e.g. "XX-ABCDEF-S") from the owner.
+# Until then, real HDFC messages go to review as unknown_sender and can be re-parsed.
+senders: [SENDER_ID_NEEDED_HDFC]
+date_formats: ["%d-%b-%y", "%d-%m-%y"]
+patterns:
+  # Monthly average balance notice. An average is not the current balance, so it is not recorded.
+  - id: avg-balance-notice
+    type: ignore
+    reason: average balance notice (not a current balance)
+    match: 'HDFC Bank A/c X+\d{4} Avg\. bal\. maintained as on'
+  # "Credit Alert! Rs.48000.00 credited to HDFC Bank A/c XX1234 on 31-07-26 from VPA <vpa> (UPI <12 digits>)"
+  - id: upi-credit
+    direction: credit
+    channel: upi
+    match: 'Rs\.?\s?(?P<amount>[\d,]+(?:\.\d+)?) credited to HDFC Bank A/c X+(?P<account>\d{4}) on (?P<date>\d{2}-\d{2}-\d{2}) from VPA (?P<vpa>\S+) \(UPI (?P<ref>\d+)\)'

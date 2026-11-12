@@ -1,0 +1,41 @@
+# FICTIONAL. "Test Bank" does not exist and these are not real bank SMS formats.
+# They exercise the pipeline only. Real profiles are written from the owner's samples.
+id: testbank
+account_kind: bank
+senders: [TESTBK]
+date_formats: ["%d-%m-%y"]
+patterns:
+  - id: failed
+    type: ignore
+    reason: failed payment
+    match: 'TESTBANK: payment of INR [\d,.]+ FAILED'
+  - id: upi-debit
+    direction: debit
+    channel: upi
+    match: 'TESTBANK: INR (?P<amount>[\d,]+(?:\.\d+)?) debited from a/c XX(?P<account>\d{4}) to (?P<vpa>\S+) on (?P<date>\d\d-\d\d-\d\d) ref (?P<ref>\d{12})(?:\. Bal INR (?P<balance>[\d,]+(?:\.\d+)?))?'
+  - id: upi-credit
+    direction: credit
+    channel: upi
+    match: 'TESTBANK: INR (?P<amount>[\d,]+(?:\.\d+)?) credited to a/c XX(?P<account>\d{4}) from (?P<vpa>\S+) on (?P<date>\d\d-\d\d-\d\d) ref (?P<ref>\d{12})'
+  - id: debit-alert
+    direction: debit
+    channel: other
+    match: 'TESTBANK ALERT: a/c XX(?P<account>\d{4}) debited INR (?P<amount>[\d,]+(?:\.\d+)?)'
+  - id: card-bill
+    direction: debit
+    channel: other
+    kind: card_payment
+    match: 'TESTBANK: INR (?P<amount>[\d,]+(?:\.\d+)?) paid from a/c XX(?P<account>\d{4}) to card XX(?P<target>\d{4})'
+  - id: card-bill-unknown
+    direction: debit
+    channel: other
+    kind: card_payment
+    match: 'TESTBANK: INR (?P<amount>[\d,]+(?:\.\d+)?) paid from a/c XX(?P<account>\d{4}) to a credit card'
+  - id: reversal
+    direction: credit
+    channel: upi
+    kind: reversal
+    match: 'TESTBANK: INR (?P<amount>[\d,]+(?:\.\d+)?) reversed to a/c XX(?P<account>\d{4}) ref (?P<ref>\d{12})'
+  - id: balance
+    type: balance
+    match: 'TESTBANK: balance in a/c XX(?P<account>\d{4}) is INR (?P<balance>[\d,]+(?:\.\d+)?)'

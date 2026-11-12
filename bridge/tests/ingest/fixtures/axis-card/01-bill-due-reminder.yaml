@@ -1,0 +1,6 @@
+# Owner's real SMS, masked: card digits changed.
+sender: SENDER_ID_NEEDED_AXISCC
+text: "Payment of INR 27749.46 for Axis Bank Credit Card no. XX1003 is due on 02-11-26 with minimum amount due of INR 592.64. Ignore if paid."
+expect:
+  status: ignored
+  reason: card bill due reminder

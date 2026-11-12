@@ -1,0 +1,24 @@
+# FICTIONAL card issuer, for pipeline tests only. Not a real SMS format.
+id: testcard
+account_kind: card
+senders: [TESTCC]
+date_formats: ["%d-%m-%y"]
+patterns:
+  - id: spend
+    direction: debit
+    channel: card
+    match: 'TESTCARD: INR (?P<amount>[\d,]+(?:\.\d+)?) spent on card XX(?P<account>\d{4}) at (?P<counterparty>.+?) on (?P<date>\d\d-\d\d-\d\d)'
+  - id: spend-alert
+    direction: debit
+    channel: card
+    match: 'TESTCARD ALERT: card XX(?P<account>\d{4}) used for INR (?P<amount>[\d,]+(?:\.\d+)?)'
+  - id: payment-received
+    direction: credit
+    channel: other
+    kind: card_payment
+    match: 'TESTCARD: payment of INR (?P<amount>[\d,]+(?:\.\d+)?) received on card XX(?P<account>\d{4})'
+  - id: refund
+    direction: credit
+    channel: card
+    kind: refund
+    match: 'TESTCARD: refund of INR (?P<amount>[\d,]+(?:\.\d+)?) to card XX(?P<account>\d{4}) from (?P<counterparty>.+?)\.'

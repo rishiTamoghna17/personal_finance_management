@@ -1,0 +1,12 @@
+# Owner's real SMS, masked: account digits, payee and reference changed.
+sender: SENDER_ID_NEEDED_HSBC
+text: "INR 14.00 is paid from HSBC account XXXXXX1002 to SHOP NAME on 12-Nov-26 with ref 100000000001. If this is not done by you, call 18002673456 to report."
+expect:
+  status: parsed
+  amount_paise: 1400
+  direction: debit
+  channel: other
+  account_last4: "1002"
+  counterparty: SHOP NAME
+  reference: "100000000001"
+  date: "2026-11-12"

@@ -1,0 +1,18 @@
+# HSBC. Written from the owner's real SMS (2026-11-13). Add a pattern only from a real sample.
+id: hsbc
+account_kind: bank
+# TODO: replace with the real DLT header from the owner.
+senders: [SENDER_ID_NEEDED_HSBC]
+date_formats: ["%d-%b-%y"]
+patterns:
+  # "INR 14.00 is paid from HSBC account XXXXXX1234 to <payee> on 12-Nov-26 with ref <12 digits>."
+  # The SMS does not name the channel, so none is assumed.
+  - id: paid-from-account
+    direction: debit
+    channel: other
+    match: 'INR (?P<amount>[\d,]+(?:\.\d+)?) is paid from HSBC account X+(?P<account>\d{4}) to (?P<counterparty>.+?) on (?P<date>\d{1,2}-[A-Za-z]{3}-\d{2}) with ref (?P<ref>\w+)'
+  # "Your HSBC Acc XXXXXX1234 is credited for INR 5000.00 on 31-Oct-26 from <vpa>. UPI Ref No <12 digits>"
+  - id: upi-credit
+    direction: credit
+    channel: upi
+    match: 'Your HSBC Acc X+(?P<account>\d{4}) is credited for INR (?P<amount>[\d,]+(?:\.\d+)?) on (?P<date>\d{1,2}-[A-Za-z]{3}-\d{2}) from (?P<vpa>\S+?)\.? UPI Ref No (?P<ref>\d+)'

@@ -9,6 +9,7 @@ from firefly.client import FireflyClient
 class FakeFirefly:
     def __init__(self, page_size=50):
         self.accounts = []
+        self.transactions = []
         self.calls = []
         self.fail_with = None
         self.page_size = page_size
@@ -37,6 +38,10 @@ class FakeFirefly:
             total_pages = max(1, -(-len(rows) // self.page_size))
             chunk = rows[(page - 1) * self.page_size : page * self.page_size]
             return httpx.Response(200, json={"data": chunk, "meta": {"pagination": {"total_pages": total_pages}}})
+        if request.method == "POST" and path == "transactions":
+            body = json.loads(request.content)
+            self.transactions.append(body)
+            return httpx.Response(200, json={"data": {"type": "transactions", "id": str(len(self.transactions))}})
         if request.method == "POST" and path == "accounts":
             body = json.loads(request.content)
             body["type"] = "liabilities" if body["type"] == "liability" else body["type"]

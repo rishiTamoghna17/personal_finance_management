@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "core",
     "firefly",
+    "ingest",
 ]
 
 MIDDLEWARE = [
@@ -79,11 +80,25 @@ FIREFLY_BASE_URL = env("FIREFLY_BASE_URL", "http://firefly:8080")
 FIREFLY_ACCESS_TOKEN = env("FIREFLY_ACCESS_TOKEN", "")
 FIREFLY_TIMEOUT_SECONDS = 15
 
+# --- Ingestion (M2) ---
+# Shared with the SMS forwarder; it signs each request body (X-Signature, HMAC-SHA-256).
+BRIDGE_SMS_HMAC_SECRET = env("BRIDGE_SMS_HMAC_SECRET", "")
+INGEST_PROFILE_DIRS = [BASE_DIR / "ingest" / "profiles"]
+# The owner's own UPI IDs. Money to or from one of them moves between own accounts,
+# so it is never counted as spend or income on its own.
+INGEST_OWN_VPAS = {v.strip().lower() for v in env("BRIDGE_OWN_VPAS", "").split(",") if v.strip()}
+INGEST_SETTLE_SECONDS = int(env("INGEST_SETTLE_SECONDS", "600"))  # wait for the other half of a transfer
+INGEST_SAME_PAYMENT_WINDOW_MINUTES = 30
+INGEST_TRANSFER_WINDOW_MINUTES = 180
+INGEST_REFERENCE_WINDOW_DAYS = 7
+BALANCE_CONFIRMED_HOURS = 72  # a bank-reported balance older than this is "stale"
+
 CELERY_BROKER_URL = REDIS_URL or "memory://"
 CELERY_RESULT_BACKEND = REDIS_URL or "cache+memory://"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_BEAT_SCHEDULE = {"ingest-sweep": {"task": "ingest.tasks.sweep", "schedule": 60.0}}
 
 # Log metadata only. Message bodies, account numbers and tokens are never logged.
 LOGGING = {

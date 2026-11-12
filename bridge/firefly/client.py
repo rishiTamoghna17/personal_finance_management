@@ -61,6 +61,10 @@ class FireflyClient:
     def create_account(self, payload):
         return self._request("POST", "accounts", json=payload)["data"]
 
+    def create_transaction(self, payload):
+        """POST /transactions. Returns the created transaction group."""
+        return self._request("POST", "transactions", json=payload)["data"]
+
     def enable_currency(self, code):
         # Firefly answers 415 to a POST with no Content-Type, so send an empty JSON body.
         return self._request("POST", f"currencies/{code}/enable", json={})

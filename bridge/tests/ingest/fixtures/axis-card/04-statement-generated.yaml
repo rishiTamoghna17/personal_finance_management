@@ -1,0 +1,6 @@
+# Owner's real SMS, masked: card digits and statement link changed. Double spaces kept.
+sender: SENDER_ID_NEEDED_AXISCC
+text: "Your statement for Axis Bank Credit Card no. XX1004 is generated.\nDue on: 30-11-26\nTotal amt: INR  Dr. 99.00\nMin amt due: INR  Dr. 99.00\nPay at axis.bank.in/ccpaynow\nTo view fees & charges: axis.bank.in/kfs\nTo view/download statement: https://ccm.axis.bank.in/AXISBK/XXXXXXXX"
+expect:
+  status: ignored
+  reason: card statement generated

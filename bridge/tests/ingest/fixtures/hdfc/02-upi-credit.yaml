@@ -1,0 +1,12 @@
+# Owner's real SMS, masked: account digits, UPI ID and reference changed. Line break kept.
+sender: SENDER_ID_NEEDED_HDFC
+text: "Credit Alert!\nRs.48000.00 credited to HDFC Bank A/c XX1001 on 31-07-26 from VPA abcd-2@okicici (UPI 100000000004)"
+expect:
+  status: parsed
+  amount_paise: 4800000
+  direction: credit
+  channel: upi
+  account_last4: "1001"
+  vpa: abcd-2@okicici
+  reference: "100000000004"
+  date: "2026-07-31"
