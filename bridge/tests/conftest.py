@@ -24,6 +24,8 @@ def _settings(settings):
     settings.BRIDGE_SMS_HMAC_SECRET = HMAC_SECRET
     settings.INGEST_PROFILE_DIRS = [TEST_PROFILES]
     settings.INGEST_SETTLE_SECONDS = 0
+    settings.INGEST_DEFAULT_ACCOUNTS = {}  # tests never depend on the owner's .env
+    settings.INGEST_OWN_VPAS = set()
     cache.clear()  # throttle counters and the account directory live in the cache
     parser.clear_cache()
     yield

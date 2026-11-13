@@ -1,0 +1,11 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: AX-ICICIT-S
+text: ICICI Bank Account XX101 credited:Rs. 45,000.00 on 30-Jun-26. Info NEFT-HSBCN00000000000-EMPLOYER. Available Balance is Rs. 50,000.00.
+expect:
+  amount_paise: 4500000
+  direction: credit
+  account_last4: '101'
+  counterparty: NEFT-HSBCN00000000000-EMPLOYER
+  balance_paise: 5000000
+  date: '2026-06-30'
+  status: parsed

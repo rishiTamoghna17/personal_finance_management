@@ -1,0 +1,9 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDFIB-S
+text: INR 1.00 sent from your account XXXXXXXX1007 Sent to your beneficiary on December 1, 2025. If this transaction wasn't done by you, call 080-00000000-Federal Bank
+expect:
+  amount_paise: 100
+  direction: debit
+  account_last4: '1007'
+  date: '2025-12-01'
+  status: parsed

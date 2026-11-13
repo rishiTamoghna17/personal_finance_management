@@ -1,0 +1,12 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-SBIPSG-S
+text: Dear Customer, Your a/c no. XXXXXXXX1005 is credited by Rs.1.00 on 01-02-26 by a/c linked to mobile 9XXXXXX000-API Bankin (IMPS Ref# 100000000105)-SBI
+expect:
+  amount_paise: 100
+  direction: credit
+  channel: imps
+  account_last4: '1005'
+  counterparty: API Bankin
+  reference: '100000000105'
+  date: '2026-02-01'
+  status: parsed

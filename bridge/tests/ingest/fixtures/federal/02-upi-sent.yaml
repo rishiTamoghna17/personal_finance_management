@@ -1,0 +1,11 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDBNK-S
+text: Rs 120.00 sent via UPI on 01-11-2026 at 10:11:12 to NAME.Ref:100000000107.Not you? Call 18004251199/SMS BLOCKUPI to 98950 88888 -Federal Bank
+expect:
+  amount_paise: 12000
+  direction: debit
+  counterparty: NAME
+  reference: '100000000107'
+  date: '2026-11-01'
+  time: '10:11:12'
+  status: parsed

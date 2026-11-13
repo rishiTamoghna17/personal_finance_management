@@ -33,3 +33,28 @@ patterns:
     channel: other
     kind: card_payment
     match: 'Payment of INR (?P<amount>[\d,]+(?:\.\d+)?) has been received towards your Axis Bank Credit Card X+(?P<account>\d{4}) on (?P<date>\d{2}-\d{2}-\d{2})'
+  # Older wording: "Spent INR 1234 Axis Bank Card no. XX1234 01-02-26 10:11:12 IST FLIPKART PA Avl Limit: ..."
+  - id: spend-short
+    direction: debit
+    channel: card
+    match: 'Spent INR (?P<amount>[\d,]+(?:\.\d+)?) Axis Bank Card no\. X+(?P<account>\d{4}) (?P<date>\d{2}-\d{2}-\d{2}) (?P<time>\d{2}:\d{2}:\d{2}) IST (?P<counterparty>.+?) Avl Limit'
+  - id: security-notice
+    type: ignore
+    reason: security notice
+    match: 'The safety & security of your A/c is most important to us'
+  - id: consent-notice
+    type: ignore
+    reason: consent management notice
+    match: 'You have successfully updated your consent management request'
+  - id: limits-updated
+    type: ignore
+    reason: card settings changed
+    match: 'usage & transaction limit options have been updated on Axis Bank Credit Card'
+  - id: app-registration
+    type: ignore
+    reason: app registration notice
+    match: '(UPI registration on Google Pay has started|Registration for .{1,30} app has started)'
+  - id: card-application
+    type: ignore
+    reason: card application notice
+    match: '(video KYC|resume KYC) for (your )?Axis Bank Credit Card application'

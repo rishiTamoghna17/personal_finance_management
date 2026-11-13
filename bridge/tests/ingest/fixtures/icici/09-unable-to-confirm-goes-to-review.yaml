@@ -1,0 +1,5 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: AX-ICICIT-S
+text: We're unable to confirm UPI Payment txn of 1000.00 on ICICI Bank Savings Acc XX0101 on 01-JUN-26. To dispute call 18002662. To unblock call 18002662 or 914000000000 if not in India
+expect:
+  status: unparsed

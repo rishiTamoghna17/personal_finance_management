@@ -1,0 +1,9 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-SBICRD-S
+text: 'Dear SBI Cardholder, payment of Rs. 500.00 for your SBI Credit Card has been successfully processed. ref no : YSBI0000000000.'
+expect:
+  amount_paise: 50000
+  direction: credit
+  kind: card_payment
+  reference: YSBI0000000000
+  status: parsed

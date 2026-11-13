@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JM-HDFCBN-S
+text: Dear Customer, We have sent an E-Mail to you for validating the E-Mail id linked with your HDFC Bank A/c. Please check and confirm. Thanks!
+expect:
+  status: ignored
+  reason: account notice

@@ -1,0 +1,10 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDFIB-S
+text: 'Great news! We''ve added INR 12.34 as interest to your account XXXXXXXX1007. Date: June 30, 2026 | Check Fi app for details. -Federal Bank'
+expect:
+  amount_paise: 1234
+  direction: credit
+  account_last4: '1007'
+  counterparty: interest
+  date: '2026-06-30'
+  status: parsed

@@ -46,7 +46,7 @@ Published ports are bound to `127.0.0.1`. Nothing is reachable from the network 
    ```bash
    docker compose run --rm -T bridge python manage.py seed_firefly - < accounts.yaml
    ```
-   This also enables INR and makes it Firefly's primary currency.
+   This also enables INR and makes it Firefly's primary currency. Re-running it creates missing accounts and corrects the last-4 digits and opening balance of existing ones, so you can fill in balances later and run it again.
 
 How accounts map to Firefly:
 
@@ -56,6 +56,7 @@ How accounts map to Firefly:
 | `credit_card` | Asset account with the credit-card role | Negative (what you owe); the credit limit is not recorded |
 | `loan`, `status: active` | Liability account, type loan | What you owe |
 | `loan`, `status: planned` | Not created until you change it to `active` | - |
+| `cash` | Asset account with the cash-wallet role | Cash in hand |
 
 ## Bridge API (v1)
 

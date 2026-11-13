@@ -1,0 +1,11 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-SBIINB-S
+text: Dear Customer, Thx for INB txn of Rs.500 frm A/c X1005 to SBICARD FO. Ref IGASITYXR0 on 01Jan26. If not done, fwd this SMS to 9223008333 to block INB or call 1800111109-SBI
+expect:
+  amount_paise: 50000
+  direction: debit
+  kind: card_payment
+  counterparty: SBICARD FO
+  reference: IGASITYXR0
+  date: '2026-01-01'
+  status: parsed

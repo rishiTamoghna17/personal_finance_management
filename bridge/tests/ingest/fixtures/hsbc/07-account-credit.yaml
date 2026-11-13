@@ -1,0 +1,10 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JM-HSBCIN-S
+text: 'HSBC: Dear Customer, your HSBC A/c 000-000***-002 has been credited with INR 45,000.00+ on 31AUG as per the transaction . Your available Bal is 52,345.67 .'
+expect:
+  amount_paise: 4500000
+  direction: credit
+  account_last4: '002'
+  balance_paise: 5234567
+  date: '2026-08-31'
+  status: parsed

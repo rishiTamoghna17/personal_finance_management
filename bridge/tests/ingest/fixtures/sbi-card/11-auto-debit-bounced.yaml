@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-SBICRD-S
+text: Dear SBI Cardholder,Payment of Rs.3192.93 via Auto Debit has bounced due to INSUFFICIENT FUNDS. Please log on to www.sbicard.com for immediate online payment.
+expect:
+  status: ignored
+  reason: card auto-debit failed (no payment made)

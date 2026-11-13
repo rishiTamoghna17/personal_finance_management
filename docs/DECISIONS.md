@@ -4,6 +4,15 @@ Add one entry whenever a design choice is made or the spec changes. Newest first
 
 Format: date · decision · why · who approved
 
+- 2026-11-13 · SBI NEO card added; SBI Card payment SMS without card digits go to review instead of defaulting to one card · two SBI cards make a default a guess · Claude, after the owner named the second card
+
+- 2026-11-13 · Federal Bank / Fi is not forwarded from the phone (profile kept for old messages) · owner no longer uses Federal Bank · owner
+- 2026-11-13 · Accounts tracked: ICICI, HDFC, HSBC (salary), SBI, Cash, two Axis cards, SBI SimplyCLICK and SBI NEO cards; bike loan planned. Digits kept only in accounts.yaml · owner's instruction · owner
+- 2026-11-13 · seed_firefly also corrects last-4 and opening balance of existing accounts · lets the owner fill balances later and re-run · owner (asked to add balances later)
+
+- 2026-11-13 · Federal Bank (FEDBNK, and Fi as FEDFIB) added as a bank profile · found in the owner's SMS backup with ~700 transactions · owner (supplied the backup)
+- 2026-11-13 · Banks whose SMS name no account use BRIDGE_DEFAULT_ACCOUNTS (profile=last4) in .env · SBI Card payment-received and most Federal UPI SMS carry no account digits · Claude, within the approved M2 plan
+
 - 2026-11-13 · Phone reaches the bridge over home Wi-Fi (bridge bound to the Mac's LAN address via docker-compose.lan.yml; Firefly stays local) · simplest for now; plain HTTP on the LAN, Tailscale or M7 HTTPS later · owner
 - 2026-11-12 · SMS forwarder until Phase 2: "Incoming SMS to URL forwarder" (MIT), bearer token + HMAC signature · open source, retries, signs requests · owner (M2 approval)
 - 2026-11-12 · Credit cards are Firefly asset accounts with the credit-card role · Firefly's own convention; net worth is unchanged · owner

@@ -61,6 +61,9 @@ class FireflyClient:
     def create_account(self, payload):
         return self._request("POST", "accounts", json=payload)["data"]
 
+    def update_account(self, account_id, payload):
+        return self._request("PUT", f"accounts/{account_id}", json=payload)["data"]
+
     def create_transaction(self, payload):
         """POST /transactions. Returns the created transaction group."""
         return self._request("POST", "transactions", json=payload)["data"]

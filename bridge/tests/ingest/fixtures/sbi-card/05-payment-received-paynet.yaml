@@ -1,0 +1,7 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-SBICRD-S
+text: We have received payment of Rs.500.00 via PayNet & the same has been credited to your SBI Credit Card. Your available limit is Rs.10,000.00.
+expect:
+  amount_paise: 50000
+  kind: card_payment
+  status: parsed

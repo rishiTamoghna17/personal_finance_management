@@ -3,7 +3,7 @@ id: hsbc
 account_kind: bank
 # Sender seen on the owner's phone: JM-HSBCIN-S (2026-11-13).
 senders: [HSBCIN]
-date_formats: ["%d-%b-%y"]
+date_formats: ["%d-%b-%y", "%d%b"]
 patterns:
   # "INR 14.00 is paid from HSBC account XXXXXX1234 to <payee> on 12-Nov-26 with ref <12 digits>."
   # The SMS does not name the channel, so none is assumed.
@@ -16,3 +16,17 @@ patterns:
     direction: credit
     channel: upi
     match: 'Your HSBC Acc X+(?P<account>\d{4}) is credited for INR (?P<amount>[\d,]+(?:\.\d+)?) on (?P<date>\d{1,2}-[A-Za-z]{3}-\d{2}) from (?P<vpa>\S+?)\.? UPI Ref No (?P<ref>\d+)'
+  # "HSBC: Dear Customer, your HSBC A/c 123-456***-789 has been credited with INR 12,345.00+ on 15AUG as per the
+  #  transaction . Your available Bal is 12,345.00 ." Only the last three digits identify the account; no year.
+  - id: account-credit
+    direction: credit
+    channel: other
+    match: 'your HSBC A/c \d{3}-\d{3}\*{3}-(?P<account>\d{3}) has been credited with INR (?P<amount>[\d,]+(?:\.\d+)?)\+? on (?P<date>\d{1,2}[A-Za-z]{3}) as .+? Your available Bal is (?P<balance>[\d,]+(?:\.\d+)?)'
+  - id: autopay-scheduled
+    type: ignore
+    reason: UPI AutoPay scheduled (not charged yet)
+    match: 'Your HSBC UPI AutoPay for [\d,.]+ towards .+ is scheduled'
+  - id: autopay-mandate
+    type: ignore
+    reason: UPI AutoPay mandate created or revoked
+    match: 'Your HSBC UPI AutoPay Mandate (for [\d,.]+ is successfully created|revokation is successfully processed)'

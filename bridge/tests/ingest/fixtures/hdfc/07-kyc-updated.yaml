@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JM-HDFCBK-S
+text: Confirmation! We have updated your Aadhaar in HDFC Bank records on 01-JUL-26.
+expect:
+  status: ignored
+  reason: KYC notice

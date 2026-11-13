@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JM-HDFCBK-S
+text: 'URGENT: Your HDFC Bank Credit Card Application D00I00000000S0DF requires more details. Complete your application today https://hdfcbk.io/HDFCBK/a/XXXXXX TnC'
+expect:
+  status: ignored
+  reason: card application notice

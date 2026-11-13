@@ -90,7 +90,7 @@ bridge/
 ### Not done: needs the owner
 - ~~Register in Firefly and create a Personal Access Token~~ Done 2026-11-12. Firefly 6.7.9 needed its personal access client created by hand (`php artisan passport:client --personal`); the token page is under the user menu → OAuth (`/profile/oauth`), not the profile tabs.
 - ~~Firefly's first-run screen created three accounts~~ Deleted 2026-11-12 at the owner's request (ICICI with a ₹500 opening balance, ICICI savings account, Cash wallet). Firefly now has no accounts and no transactions.
-- ~~Write `accounts.yaml` and run `seed_firefly`~~ Done 2026-11-13: "ICICI Bank" (savings, last4 5000) and "Axis Credit Card" (last4 0000, ₹10,000 outstanding) created. Other banks not listed yet. Firefly's first-run screen had created three accounts again (ICICI ₹5,000, ICICI savings account ₹4,000, Cash wallet; opening balances only); deleted 2026-11-13 at the owner's request.
+- ~~Write `accounts.yaml` and run `seed_firefly`~~ Done 2026-11-13, then extended the same day to all accounts (ICICI, HDFC, HSBC, SBI, Cash, Axis and Axis Amex cards, SBI SimplyCLICK and SBI NEO cards; bike loan planned). Digits live only in the gitignored `accounts.yaml`. The seed now also handles renames (matches by digits) and corrects digits and opening balances. Earlier: "ICICI Bank" (savings, last4 5000) and "Axis Credit Card" (last4 0000, ₹10,000 outstanding) created. Other banks not listed yet. Firefly's first-run screen had created three accounts again (ICICI ₹5,000, ICICI savings account ₹4,000, Cash wallet; opening balances only); deleted 2026-11-13 at the owner's request.
 - The Meteor 350 loan stays `status: planned` until disbursed.
 
 ### Small differences from the plan
@@ -157,30 +157,33 @@ docs/sms-forwarder.md                        # phone setup
 - YAML bank profiles with validation (card profiles may not capture a balance). `bridge/ingest/profiles/` is empty: no real bank format has been written.
 - Reconciliation: reference, then account + amount + 30-minute window, then transfers between own accounts; ambiguous → review; 10-minute settle window before posting; reversals cancel an unposted debit.
 - Celery: `process_raw(id)` and `post_entry(id)` take ids only; `sweep` runs every minute from beat.
-- 210 tests pass (pipeline + 26 real-profile fixtures), using a fictional "Test Bank" and "Test Card" (`bridge/tests/ingest/profiles/`, clearly marked as not real formats).
+- 275 tests pass (pipeline + 86 real-profile fixtures, every real pattern covered), using a fictional "Test Bank" and "Test Card" (`bridge/tests/ingest/profiles/`, clearly marked as not real formats).
 - Live run on a throwaway Firefly 6.7.9 with test profiles: OTP dropped and absent from the bridge database and logs; re-delivery stored once; a UPI debit posted once; an own transfer posted as one transfer; a card spend reported by two messages posted once; a card bill payment posted as a transfer to the card; an unknown sender went to review; Firefly's balances, spend (₹1,749.50) and net worth (₹8,250.50) matched hand calculation; the bank-reported balance matched Firefly's. Throwaway instance deleted.
 - Phone setup guide: docs/sms-forwarder.md.
 
 ### Profiles from the owner's samples (2026-11-13)
-| Profile | Patterns | Sender ID |
+Built from screenshots and from the owner's full SMS backup (19,922 SMS; analysed locally, never copied into the project).
+
+| Profile | Senders | Reads |
 | --- | --- | --- |
-| hdfc | UPI credit; average balance notice (ignored, not recorded as a balance) | HDFCBK (JM-HDFCBK-S) |
-| hsbc | "is paid from HSBC account" debit; UPI credit | HSBCIN (JM-HSBCIN-S) |
-| axis-card | spend (with time); payment received (card side of a bill payment); statement generated, bill due reminder, declined (all ignored); OTP sample confirmed dropped | AXISBK (JD-AXISBK-S) |
-| sbi | UPI debit; UPI mandate created / cancelled (ignored); MPIN OTP confirmed dropped | SBIUPI (JX-SBIUPI-S) |
-| icici | UPI debit; IMPS credit; informational notice (ignored). Shows only 3 account digits | ICICIT (AX-ICICIT-S) |
-| sbi-card | spend; recurring e-mandate debit (with time); credit limit alert (ignored, limit never read as balance) | SBICRD (JD-SBICRD-S) |
+| hdfc | HDFCBK, HDFCBN | UPI sent, UPI credit; notices ignored |
+| hsbc | HSBCIN | paid from account, UPI credit, account credit with balance (no year in date); AutoPay notices ignored |
+| icici | ICICIT | UPI debit, IMPS credit, NEFT/other credit with balance, UPI reversal; "unable to confirm" goes to review on purpose |
+| axis-card | AXISBK | spend (two wordings, with time), payment received; notices ignored |
+| sbi | SBIUPI, SBIPSG, ATMSBI, CBSSBI, SBIINB | UPI debit and credit, IMPS credit, ATM withdrawal, NACH credit, net-banking payment to SBI Card; mandate/AutoPay notices ignored |
+| sbi-card | SBICRD, MYSBIC | spend, spend via UPI, e-mandate debit (two wordings), payment received/processed (no card digits: with two SBI cards these go to review); promotions and notices ignored |
+| federal (not forwarded: owner no longer uses Federal Bank) | FEDBNK, FEDFIB | UPI debit/sent/debited, mandate and debit-card e-mandate debits, Fi NEFT credit, spend, ATM, interest, sent, received |
 
-Fixtures in `bridge/tests/ingest/fixtures/`, masked again (digits, UPI IDs, references, links and the OTP code changed). Real sender IDs set 2026-11-13. Accounts shown with only three digits (ICICI) match Firefly accounts whose last four end with them; two such accounts → review. Tata Neu (TNBPAY) SBI Card reminders are not forwarded. AXISBK may also carry Axis bank-account SMS; those patterns would go in the same profile.
+Backup check, bank senders only: 1,530 SMS become transactions, 287 ignored with a reason, 411 dropped as OTP/PIN (all checked by shape: no transaction among them), 208 still unread (account-opening, KYC, promotions and similar one-offs; live, these go to review). No parsed date was more than 3 days from the SMS date and no amount was zero.
 
-Added with these samples:
-- Parser reads a `time` group (Axis spends carry HH:MM:SS).
-- `BRIDGE_OWN_VPAS` in `.env`: money to or from the owner's own UPI IDs is an own transfer (waits for its other half; unpaired → review), never income or spend. Two IDs from the samples are set.
+Every pattern has a masked fixture (`bridge/tests/ingest/fixtures/`); a test enforces it.
 
 ### Not done
 - More samples still useful: a bank-side card bill payment (e.g. SBI or ICICI paying the Axis or SBI card), SBI and HDFC credits, an HDFC debit, a refund, a failed payment, a balance alert.
-- Firefly accounts (owner will add all accounts when the build is finished; until then SMS for missing accounts go to review as `unknown_account` and can be re-parsed): the samples show HDFC XX1151, HSBC XX9006, SBI X3727, ICICI XX378 (last 3 only), Axis cards XX1233 and XX9315, and SBI Card 5173, but Firefly has ICICI Bank (5000, which does not end in 378) and one Axis card as 0000. HDFC, HSBC and the second Axis card need adding with 2026-11-01 balances, and the Axis card's last4 needs correcting.
-- Phone setup: reachability decided (home Wi-Fi, bridge on 192.168.0.106:8000, checked from the LAN address 2026-11-13). Sender IDs still come from the samples.
+- Opening balances: owner is filling them in `accounts.yaml` (Cash and one Axis card done); re-run `seed_firefly` after each change.
+- Account digits (2026-11-13): bank accounts use the account digits their SMS show (owner's choice; debit-card endings kept as comments in `accounts.yaml`). Checked: every SMS ending (ICICI's three-digit one included) resolves to the right Firefly account, for all four banks and four cards.
+- ~~Phone setup~~ Done 2026-11-13: Galaxy S23 FE (Android 16), forwarder 2.4.0 with SMS permission and battery unrestricted; rule imported from a generated file (deleted from phone and Mac afterwards). The app's Test reached the bridge (202, token and HMAC accepted); test messages closed in review. First test failed only because Docker Desktop had stopped; turn on "start at login".
+- First live SMS (2026-11-13): owner's ₹1 UPI payment from HSBC arrived via the phone, parsed by hsbc/paid-from-account, matched to HSBC Bank. A live SBI Card survey SMS went to review as unparsed; an ignore pattern was added and the message re-parsed from the review queue.
 - Tests with the owner's real samples (SPEC: unit tests for every bank profile).
 
 ### Design notes

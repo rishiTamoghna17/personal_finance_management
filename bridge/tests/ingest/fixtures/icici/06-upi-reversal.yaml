@@ -1,0 +1,10 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: AX-ICICIT-S
+text: 'Dear Customer, your ICICI Bank Account XXX101 has been credited with Rs 25.00 on 01-Jul-26 as reversal of transaction with UPI: 100000000103.'
+expect:
+  amount_paise: 2500
+  direction: credit
+  kind: reversal
+  reference: '100000000103'
+  date: '2026-07-01'
+  status: parsed

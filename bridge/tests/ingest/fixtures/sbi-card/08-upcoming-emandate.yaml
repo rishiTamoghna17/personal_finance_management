@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-SBICRD-S
+text: 'Dear Cardholder, your payment of INR 69.00 at Amazon Seller Services PL is due on 06/11/2026 and will be processed through your credit card ending 1006 as per e-Mandate (SiHub ID: XXXXXXXXXX) registered by you. To opt out of this'
+expect:
+  status: ignored
+  reason: upcoming e-mandate charge (not charged yet)

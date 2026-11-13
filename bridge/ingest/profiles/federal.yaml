@@ -1,0 +1,83 @@
+# Federal Bank (also the bank behind Fi). Written from the owner's real SMS backup (2026-11-13).
+# These SMS never name the account: its digits come from BRIDGE_DEFAULT_ACCOUNTS (federal=1234).
+id: federal
+account_kind: bank
+# Senders in the owner's SMS: FEDBNK (Federal Bank), FEDFIB (Fi).
+senders: [FEDBNK, FEDFIB]
+date_formats: ["%d-%m-%Y", "%B %d, %Y", "%d%b%y"]
+patterns:
+  # "Rs 12.00 debited via UPI on 01-02-2026 10:11:12 to VPA x@ybl.Ref No 123456789012.Small txns?Use UPI Lite!-Federal Bank"
+  - id: upi-debit
+    direction: debit
+    channel: upi
+    account: default
+    match: 'Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) debited via UPI on (?P<date>\d{2}-\d{2}-\d{4}) (?P<time>\d{2}:\d{2}:\d{2}) to VPA (?P<vpa>\S+?)\.Ref No (?P<ref>\d+)'
+  # Fi: "<Name>, QUANT has sent INR 1,234.00 to you. Mode:NEFT | October 1, 2026 | Ref No. ..."
+  - id: neft-credit
+    direction: credit
+    channel: neft
+    account: default
+    match: ', (?P<counterparty>.+?) has sent INR (?P<amount>[\d,]+(?:\.\d+)?) to you\. Mode:NEFT \| (?P<date>[A-Za-z]+ \d{1,2}, \d{4}) \| Ref No\. (?P<ref>\S+)'
+  # Fi: "You've spent INR 12.00 at 10:11 on November 1, 2026. If it wasn't done by you, ..."
+  - id: spend
+    direction: debit
+    channel: other
+    account: default
+    match: 'You.ve spent INR (?P<amount>[\d,]+(?:\.\d+)?) at (?P<time>\d{1,2}:\d{2}) on (?P<date>[A-Za-z]+ \d{1,2}, \d{4})'
+  # Fi: "Withdrawn: INR 1,234.00 | This transaction occurred on June 1, 2026 at 10:11."
+  - id: atm-withdrawal
+    direction: debit
+    channel: atm
+    account: default
+    match: 'Withdrawn: INR (?P<amount>[\d,]+(?:\.\d+)?) \| This transaction occurred on (?P<date>[A-Za-z]+ \d{1,2}, \d{4}) at (?P<time>\d{1,2}:\d{2})'
+  # "Rs 123.00 sent via UPI on 01-02-2026 at 10:11:12 to NAME.Ref:123456789012.Not you? ..."
+  - id: upi-sent
+    direction: debit
+    channel: upi
+    account: default
+    match: 'Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) sent via UPI on (?P<date>\d{2}-\d{2}-\d{4}) at (?P<time>\d{2}:\d{2}:\d{2}) to (?P<counterparty>.+?)\.Ref:(?P<ref>\d+)'
+  # "Your mandate with ref no- <umn> registered against Google Play for Rs 123.00 successfully executed on 01-02-2026 10:11:12. TXN Ref No -123456789012-"
+  - id: mandate-executed
+    direction: debit
+    channel: upi
+    account: default
+    match: 'Your mandate with ref no- ?\S+ registered against (?P<counterparty>.+?) for Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) successfully executed on (?P<date>\d{2}-\d{2}-\d{4}) (?P<time>\d{2}:\d{2}:\d{2})\. TXN Ref No -(?P<ref>\d+)-'
+  # "Hi, payment of INR 12.00 for Google Play via e-mandate ID: <id> on Federal Bank Debit Card 1234 is processed successfully."
+  # The digits are the debit card's, not the account's, so the default account is used.
+  - id: debit-card-emandate
+    direction: debit
+    channel: card
+    account: default
+    match: 'payment of INR (?P<amount>[\d,]+(?:\.\d+)?) for (?P<counterparty>.+?) via e-mandate ID: \S+ on Federal Bank Debit Card \d+ is processed successfully'
+  - id: upcoming-emandate
+    type: ignore
+    reason: upcoming e-mandate charge (not charged yet)
+    match: 'payment due for .+ will be processed using Federal Bank Debit Card'
+  # Fi: "Great news! We've added INR 12.00 as interest to your account XXXXXXXX1234. Date: June 30, 2026 | ..."
+  - id: interest-credit
+    direction: credit
+    channel: other
+    match: 'added INR (?P<amount>[\d,]+(?:\.\d+)?) as (?P<counterparty>interest) to your account X+(?P<account>\d{4})\. Date: (?P<date>[A-Za-z]+ \d{1,2}, \d{4})'
+  # Fi: "INR 1.00 sent from your account XXXXXXXX1234 Sent to your beneficiary on December 1, 2026."
+  - id: account-sent
+    direction: debit
+    channel: other
+    match: 'INR (?P<amount>[\d,]+(?:\.\d+)?) sent from your account X+(?P<account>\d{4}) Sent to your beneficiary on (?P<date>[A-Za-z]+ \d{1,2}, \d{4})'
+  # Fi: "<Name>, you've received INR 12,345.00 in your Account XXXXXXXX1234. Woohoo! It was sent by Others on March 1, 2026."
+  - id: account-received
+    direction: credit
+    channel: other
+    match: 'received INR (?P<amount>[\d,]+(?:\.\d+)?) in your Account X+(?P<account>\d{4})\. Woohoo! It was sent by (?P<counterparty>.+?) on (?P<date>[A-Za-z]+ \d{1,2}, \d{4})'
+  # "Debited Rs 123.00 from a/c X1234 on 01Jul26 10:11 via UPI to NAME. Ref 123456789012.Bal Rs 1234.00. Not you?..."
+  - id: upi-debited
+    direction: debit
+    channel: upi
+    match: 'Debited Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) from a/c X(?P<account>\d{4}) on (?P<date>\d{1,2}[A-Za-z]{3}\d{2}) (?P<time>\d{2}:\d{2}) via UPI to (?P<counterparty>.+?)\. Ref (?P<ref>\d+)\.Bal Rs\.? ?(?P<balance>[\d,]+(?:\.\d+)?)'
+  - id: failed
+    type: ignore
+    reason: failed payment
+    match: 'txn of Rs\.? ?[\d,.]+ using card XX\d+ failed'
+  - id: mandate-setup
+    type: ignore
+    reason: mandate or card-on-file set up (not a payment)
+    match: '(e-mandate on Federal Bank Debit Card \d+ is active|You have successfully created a mandate on|authorized .+ to store your Federal Bank Debit Card details)'

@@ -1,0 +1,11 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDFIB-S
+text: NAME, COMPANY has sent INR 1,234.00 to you. Mode:NEFT | October 1, 2026 | Ref No. 0:00000000:S00000000 -Federal Bank
+expect:
+  amount_paise: 123400
+  direction: credit
+  channel: neft
+  counterparty: COMPANY
+  reference: 0:00000000:S00000000
+  date: '2026-10-01'
+  status: parsed

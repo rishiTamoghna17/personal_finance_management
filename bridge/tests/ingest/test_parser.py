@@ -88,3 +88,16 @@ def test_shipped_profiles_load(settings):
     settings.INGEST_PROFILE_DIRS = [real.BASE_DIR / "ingest" / "profiles"]
     parser.clear_cache()
     parser.profiles()  # every real profile must load
+
+
+def test_date_without_year_takes_the_latest_past_date(settings, tmp_path):
+    (tmp_path / "p.yaml").write_text(
+        "id: noyear\naccount_kind: bank\nsenders: [NOYEAR]\ndate_formats: ['%d%b']\npatterns:\n"
+        "  - id: c\n    direction: credit\n    match: 'X (?P<account>\\d{4}) (?P<amount>[\\d.]+) on (?P<date>\\d\\d[A-Z]{3})'\n"
+    )
+    settings.INGEST_PROFILE_DIRS = [tmp_path]
+    parser.clear_cache()
+    jan = dt.datetime(2027, 1, 5, 10, 0, tzinfo=parser.IST)
+    assert parse("NOYEAR", "X 1111 5.00 on 30DEC", jan).parsed.occurred_at.date() == dt.date(2026, 12, 30)
+    assert parse("NOYEAR", "X 1111 5.00 on 04JAN", jan).parsed.occurred_at.date() == dt.date(2027, 1, 4)
+    assert parse("NOYEAR", "X 1111 5.00 on 29FEB", jan).parsed.occurred_at.date() == dt.date(2024, 2, 29)

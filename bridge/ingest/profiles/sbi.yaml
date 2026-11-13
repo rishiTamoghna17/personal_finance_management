@@ -2,8 +2,8 @@
 id: sbi
 account_kind: bank
 # Sender seen on the owner's phone: JX-SBIUPI-S (2026-11-13). SBI may use other headers for non-UPI alerts.
-senders: [SBIUPI]
-date_formats: ["%d%b%y"]
+senders: [SBIUPI, SBIPSG, ATMSBI, CBSSBI, SBIINB]
+date_formats: ["%d%b%y", "%d-%m-%y", "%d/%m/%y"]
 patterns:
   # Mandates set up or cancelled: no money moves when the SMS is sent.
   - id: mandate-created
@@ -20,3 +20,53 @@ patterns:
     direction: debit
     channel: upi
     match: 'Dear UPI user A/C X+(?P<account>\d{4}) debited by (?P<amount>[\d,]+(?:\.\d+)?) on date (?P<date>\d{1,2}[A-Za-z]{3}\d{2}) trf to (?P<counterparty>.+?) Refno (?P<ref>\d+)'
+  # "Dear SBI User, your A/c X1234-credited by Rs.5000 on 01Oct26 transfer from NAME Ref No 123456789012 -SBI"
+  - id: upi-credit
+    direction: credit
+    channel: upi
+    match: 'your A/c X(?P<account>\d{4})-credited by Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) on (?P<date>\d{1,2}[A-Za-z]{3}\d{2}) transfer from (?P<counterparty>.+?) Ref No (?P<ref>\d+)'
+  # SBIPSG: "Your a/c no. XXXXXXXX1234 is credited by Rs.1.00 on 01-02-26 by a/c linked to mobile 9XXXXXX123-API Bankin (IMPS Ref# 123456789012)-SBI"
+  - id: imps-credit
+    direction: credit
+    channel: imps
+    match: 'Your a/c no\. X+(?P<account>\d{4}) is credited by Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) on (?P<date>\d{2}-\d{2}-\d{2}) by a/c linked to mobile \S+?-(?P<counterparty>.+?) \(IMPS Ref# (?P<ref>\d+)\)'
+  # ATMSBI: "Rs.500 withdrawn at SBI ATM <id> from A/cX1234 on 01Apr26 Transaction Number 1234. Available Balance Rs.1234.00."
+  - id: atm-withdrawal
+    direction: debit
+    channel: atm
+    match: 'Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) withdrawn at SBI ATM \S+ from A/cX(?P<account>\d{4}) on (?P<date>\d{1,2}[A-Za-z]{3}\d{2}) Transaction Number (?P<ref>\d+)\. Available Balance Rs\.? ?(?P<balance>[\d,]+(?:\.\d+)?)'
+  # CBSSBI: "Your A/C XXXXX123456 has a credit by NACH- COMPANY of Rs 12.00 on 01/02/26. Avl Bal Rs 1,234.00."
+  - id: nach-credit
+    direction: credit
+    channel: nach
+    match: 'Your A/C X+(?P<account>\d{4,}) has a credit by NACH- ?(?P<counterparty>.+?) of Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) on (?P<date>\d{2}/\d{2}/\d{2})\. Avl Bal Rs\.? ?(?P<balance>[\d,]+(?:\.\d+)?)'
+  # SBIINB, paying the SBI credit card: "Thx for INB txn of Rs.123 frm A/c X1234 to SBICARD FO. Ref ... on 01Jan26."
+  - id: inb-card-payment
+    direction: debit
+    channel: other
+    kind: card_payment
+    match: 'Thx for INB txn of Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) frm A/c X(?P<account>\d{4}) to (?P<counterparty>SBICARD.*?)\. Ref (?P<ref>\w+) on (?P<date>\d{1,2}[A-Za-z]{3}\d{2})'
+  - id: autopay-scheduled
+    type: ignore
+    reason: UPI AutoPay scheduled (not charged yet)
+    match: 'UPI AutoPay for .+ debit of Rs\.? ?[\d,.]+ is scheduled'
+  - id: mandate-created-long
+    type: ignore
+    reason: UPI mandate created
+    match: 'Your UPI-Mandate for Rs\.? ?[\d,.]+ is successfully created towards'
+  - id: app-linked
+    type: ignore
+    reason: UPI registration notice
+    match: 'successfully linked your Bank A/C on .+ UPI App'
+  - id: collect-request
+    type: ignore
+    reason: collect request (not a payment)
+    match: 'has requested Rs\.? ?[\d,.]+ frm u on'
+  - id: mandate-revoked
+    type: ignore
+    reason: UPI mandate cancelled
+    match: 'UPI-Mandate successfully Revoked by'
+  - id: mandate-collect-request
+    type: ignore
+    reason: collect request (not a payment)
+    match: 'You have received a UPI-Mandate collect request from'

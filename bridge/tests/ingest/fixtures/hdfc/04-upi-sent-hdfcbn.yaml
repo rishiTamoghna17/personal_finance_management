@@ -1,0 +1,7 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JM-HDFCBN-S
+text: Sent Rs.5.00 From HDFC Bank A/C *1001 To NAME On 12/10/26 Ref 100000000102 Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+expect:
+  amount_paise: 500
+  date: '2026-10-12'
+  status: parsed

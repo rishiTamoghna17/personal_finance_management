@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: AX-ICICIT-S
+text: Dear Customer, your cooling period limit is Rs 5000, for the first 24 hours. Do not share UPI PIN/Card details/OTP/CVV with anyone-ICICI Bank.
+expect:
+  status: ignored
+  reason: account notice

@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JX-SBIUPI-S
+text: Dear Customer, You have received a UPI-Mandate collect request from MERCHANT for Rs.199.00. Login into Google Pay application to authorize. -SBI
+expect:
+  status: ignored
+  reason: collect request (not a payment)

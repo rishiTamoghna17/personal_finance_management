@@ -1,0 +1,12 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-AXISBK-S
+text: 'Spent INR 1234 Axis Bank Card no. XX1003 01-02-26 10:11:12 IST FLIPKART PA Avl Limit: INR 30000.5 Not you? SMS BLOCK 1003 to 919951860002'
+expect:
+  amount_paise: 123400
+  direction: debit
+  channel: card
+  account_last4: '1003'
+  counterparty: FLIPKART PA
+  date: '2026-02-01'
+  time: '10:11:12'
+  status: parsed

@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-AXISBK-S
+text: As per your request, the usage & transaction limit options have been updated on Axis Bank Credit Card XX1003. Call 18001035577, if not requested by you - Axis Bank
+expect:
+  status: ignored
+  reason: card settings changed

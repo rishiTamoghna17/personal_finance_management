@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JM-HSBCIN-S
+text: Dear Customer, Your HSBC UPI AutoPay Mandate revokation is successfully processed towards Google Play. Ref no 00000000000000000000000000000000@oksbi.
+expect:
+  status: ignored
+  reason: UPI AutoPay mandate created or revoked

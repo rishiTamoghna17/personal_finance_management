@@ -37,7 +37,7 @@ Google Messages → Settings → RCS chats → turn off.
 
 | Field | Value |
 | --- | --- |
-| Sender | `(?i)-(HDFCBK\|HSBCIN\|AXISBK\|SBIUPI\|ICICIT\|SBICRD)(-[A-Z])?$` with **Sender is a regular expression** ticked. This matches `JM-HDFCBK-S`, `JM-HSBCIN-S`, `JD-AXISBK-S`, `JX-SBIUPI-S`, `AX-ICICIT-S` and `JD-SBICRD-S` whatever the operator prefix. Tata Neu reminders (`TNBPAY`) are left out on purpose: they only repeat the SBI Card due date. Add each new bank's 6-letter ID inside the brackets. Do not use `*`: it would send personal SMS to the bridge. |
+| Sender | `(?i)-(HDFCBK\|HDFCBN\|HSBCIN\|AXISBK\|SBIUPI\|SBIPSG\|ATMSBI\|CBSSBI\|SBIINB\|ICICIT\|SBICRD\|MYSBIC)(-[A-Z])?$` with **Sender is a regular expression** ticked. It matches every bank sender found in your SMS backup, whatever the operator prefix (`JM-`, `AX-`, …). Add a new bank's 6-letter ID inside the brackets. Left out on purpose: `FEDBNK`/`FEDFIB` (Federal Bank / Fi, no longer used), `TNBPAY` (Tata Neu reminders), `SBIBNK` and `SBYONO` (SBI promotions), `FIMONY` (Fi app offers). Do not use `*`: it would send personal SMS to the bridge. |
 | Text filter | `(?si)^(?!.*(is your otp\|otp is\|otp for\|one.?time.?pass\|verification code))` drops obvious OTPs on the phone. The bridge filters again, more strictly. |
 | URL | `http://192.168.0.106:8000/api/v1/ingest/sms` (your `BRIDGE_LAN_IP`) |
 | Headers | `{"Authorization": "Bearer <BRIDGE_API_TOKEN from .env>"}` |

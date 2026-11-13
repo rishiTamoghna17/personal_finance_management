@@ -2,8 +2,8 @@
 id: hdfc
 account_kind: bank
 # Sender seen on the owner's phone: JM-HDFCBK-S (2026-11-13).
-senders: [HDFCBK]
-date_formats: ["%d-%b-%y", "%d-%m-%y"]
+senders: [HDFCBK, HDFCBN]
+date_formats: ["%d-%b-%y", "%d-%m-%y", "%d/%m/%y"]
 patterns:
   # Monthly average balance notice. An average is not the current balance, so it is not recorded.
   - id: avg-balance-notice
@@ -15,3 +15,36 @@ patterns:
     direction: credit
     channel: upi
     match: 'Rs\.?\s?(?P<amount>[\d,]+(?:\.\d+)?) credited to HDFC Bank A/c X+(?P<account>\d{4}) on (?P<date>\d{2}-\d{2}-\d{2}) from VPA (?P<vpa>\S+) \(UPI (?P<ref>\d+)\)'
+  # "Sent Rs.123.00 From HDFC Bank A/C *1234 To ROY STORE On 01/11/26 Ref 123456789012 Not You? Call ..."
+  - id: upi-sent
+    direction: debit
+    channel: upi
+    match: 'Sent Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) From HDFC Bank A/C \*(?P<account>\d{4}) To (?P<counterparty>.+?) On (?P<date>\d{2}/\d{2}/\d{2}) Ref (?P<ref>\d+)'
+  - id: card-application
+    type: ignore
+    reason: card application notice
+    match: 'Your HDFC Bank Credit Card Application'
+  - id: upi-activated
+    type: ignore
+    reason: UPI registration notice
+    match: 'UPI Activated! You.ve linked your Bank A/c to UPI'
+  - id: kyc-updated
+    type: ignore
+    reason: KYC notice
+    match: 'We have updated your Aadhaar in HDFC Bank records'
+  - id: account-opened
+    type: ignore
+    reason: account opened notice
+    match: 'Your new HDFC Bank A/c is active'
+  - id: email-validation
+    type: ignore
+    reason: account notice
+    match: 'We have sent an E-Mail to you for validating the E-Mail id'
+  - id: promotion
+    type: ignore
+    reason: promotion
+    match: '^(Welcome Bonus Get|Voucher Alert! Get vouchers)'
+  - id: upi-declined
+    type: ignore
+    reason: declined transaction
+    match: 'UPI Transaction Declined for your HDFC Bank account'

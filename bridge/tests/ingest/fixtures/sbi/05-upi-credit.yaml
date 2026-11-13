@@ -1,0 +1,12 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JX-SBIUPI-S
+text: Dear SBI User, your A/c X1005-credited by Rs.5000 on 01Oct26 transfer from NAME SURNAME Ref No 100000000104 -SBI
+expect:
+  amount_paise: 500000
+  direction: credit
+  channel: upi
+  account_last4: '1005'
+  counterparty: NAME SURNAME
+  reference: '100000000104'
+  date: '2026-10-01'
+  status: parsed

@@ -42,6 +42,12 @@ class FakeFirefly:
             body = json.loads(request.content)
             self.transactions.append(body)
             return httpx.Response(200, json={"data": {"type": "transactions", "id": str(len(self.transactions))}})
+        if request.method == "PUT" and path.startswith("accounts/"):
+            body = json.loads(request.content)
+            account = next(a for a in self.accounts if a["id"] == path.split("/")[1])
+            body.pop("type", None)
+            account["attributes"].update(body)
+            return httpx.Response(200, json={"data": account})
         if request.method == "POST" and path == "accounts":
             body = json.loads(request.content)
             body["type"] = "liabilities" if body["type"] == "liability" else body["type"]

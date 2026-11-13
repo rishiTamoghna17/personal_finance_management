@@ -20,6 +20,7 @@ x-bridge: &bridge
     FIREFLY_ACCESS_TOKEN: ${FIREFLY_ACCESS_TOKEN:-}
     BRIDGE_SMS_HMAC_SECRET: ${BRIDGE_SMS_HMAC_SECRET:?set in .env}
     BRIDGE_OWN_VPAS: ${BRIDGE_OWN_VPAS:-}
+    BRIDGE_DEFAULT_ACCOUNTS: ${BRIDGE_DEFAULT_ACCOUNTS:-}
     TZ: Asia/Kolkata
   networks: [internal]
   depends_on:

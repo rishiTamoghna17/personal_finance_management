@@ -1,0 +1,10 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDBNK-S
+text: 'Hi, payment of INR 29.00 for Google Play via e-mandate ID: XXXXXXXXXX on Federal Bank Debit Card 1234 is processed successfully. To manage, visit: https://www.sihub.in/managesi/federal T&CA - Federal Bank'
+expect:
+  amount_paise: 2900
+  direction: debit
+  channel: card
+  counterparty: Google Play
+  account_last4: ''
+  status: parsed

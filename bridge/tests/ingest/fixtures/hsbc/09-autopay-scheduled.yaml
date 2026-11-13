@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JM-HSBCIN-S
+text: Dear Customer, Your HSBC UPI AutoPay for 1000.00 towards MBK Wallet Autopay is scheduled on 01/12/2026. Please ensure sufficient balance in your account. Ref no 00000000000000000000000000000000@ikwik.
+expect:
+  status: ignored
+  reason: UPI AutoPay scheduled (not charged yet)

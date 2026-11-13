@@ -1,0 +1,13 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDBNK-S
+text: Rs 45.00 debited via UPI on 01-11-2026 10:11:12 to VPA abcd@ybl.Ref No 100000000106.Small txns?Use UPI Lite!-Federal Bank
+expect:
+  amount_paise: 4500
+  direction: debit
+  channel: upi
+  account_last4: ''
+  vpa: abcd@ybl
+  reference: '100000000106'
+  date: '2026-11-01'
+  time: '10:11:12'
+  status: parsed

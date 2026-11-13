@@ -32,7 +32,7 @@ def test_build_plan():
     assert savings["account_number"] == "XX1234" and savings["currency_code"] == "INR"
     assert savings["opening_balance"] == "150000.50" and savings["opening_balance_date"] == "2026-11-01"
 
-    assert "opening_balance" not in by_name["Bank Two Salary"]  # zero balance: nothing to record
+    assert by_name["Bank Two Salary"]["opening_balance"] == "0.00"  # sent so a re-run can correct it
 
     card = by_name["Card One"]
     assert card["account_role"] == "ccAsset" and card["opening_balance"] == "-12345.67"
@@ -96,7 +96,22 @@ def test_seed_creates_then_is_idempotent(tmp_path, monkeypatch):
     assert "Bike Loan" not in {a["attributes"]["name"] for a in fake.accounts}
 
     second = _run(tmp_path, monkeypatch, fake)
-    assert second.count("exists") == 4 and "created  " not in second
+    assert second.count("exists") == 4 and "created  " not in second and "updated" not in second
+    assert len(fake.accounts) == 4
+
+
+def test_seed_corrects_digits_and_balances_of_existing_accounts(tmp_path, monkeypatch):
+    fake = FakeFirefly()
+    _run(tmp_path, monkeypatch, fake)
+    path = tmp_path / "accounts.yaml"
+    path.write_text(GOOD.replace('last4: "1234"', 'last4: "7378"').replace('outstanding: "12345.67"', 'outstanding: "0.00"'))
+    out = io.StringIO()
+    call_command("seed_firefly", str(path), stdout=out)
+    out = out.getvalue()
+    assert out.count("updated") == 2 and out.count("exists") == 2
+    by_name = {a["attributes"]["name"]: a["attributes"] for a in fake.accounts}
+    assert by_name["Bank One Savings"]["account_number"] == "XX7378"
+    assert by_name["Card One"]["opening_balance"] == "0.00"
     assert len(fake.accounts) == 4
 
 
@@ -104,6 +119,13 @@ def test_seed_output_has_no_amounts_or_account_numbers(tmp_path, monkeypatch):
     out = _run(tmp_path, monkeypatch, FakeFirefly())
     for secret in ("150000", "12345.67", "1234", "9876", "200000"):
         assert secret not in out
+
+
+def test_cash_account():
+    payloads, _ = build_plan({"opening_balance_date": "2026-11-01",
+                              "accounts": [{"name": "Cash", "kind": "cash", "opening_balance": "2,500.00"}]})
+    assert payloads[0]["account_role"] == "cashWalletAsset" and payloads[0]["opening_balance"] == "2500.00"
+    assert "account_number" not in payloads[0]
 
 
 def test_seed_dry_run_touches_nothing(tmp_path, monkeypatch):
@@ -126,3 +148,15 @@ def test_example_file_is_valid():
     example = pathlib.Path(__file__).resolve().parents[2] / "accounts.example.yaml"
     if example.exists():  # not present inside the Docker image
         build_plan(yaml.safe_load(example.read_text()))
+
+
+def test_renamed_account_is_updated_not_duplicated(tmp_path, monkeypatch):
+    fake = FakeFirefly()
+    _run(tmp_path, monkeypatch, fake)
+    path = tmp_path / "accounts.yaml"
+    path.write_text(GOOD.replace('"Card One"', '"Card One Renamed"'))
+    out = io.StringIO()
+    call_command("seed_firefly", str(path), stdout=out)
+    assert "updated  Card One Renamed" in out.getvalue()
+    names = {a["attributes"]["name"] for a in fake.accounts}
+    assert "Card One Renamed" in names and "Card One" not in names and len(fake.accounts) == 4

@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-AXISBK-S
+text: 'The safety & security of your A/c is most important to us. Do go through these simple guidelines to safeguard your A/c. Click here: https://ccm.axbk.in/AXISBK/XXXXXXXX - Axis Bank'
+expect:
+  status: ignored
+  reason: security notice

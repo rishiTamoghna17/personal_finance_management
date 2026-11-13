@@ -1,0 +1,9 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-SBICRD-S
+text: We have received payment of Rs.1,234.00 via UPI & the same has been credited to your SBI Credit Card. Your available limit is Rs.10,000.00.
+expect:
+  amount_paise: 123400
+  direction: credit
+  kind: card_payment
+  account_last4: ''
+  status: parsed

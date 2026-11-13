@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDBNK-S
+text: Hi, payment due for Google Play,INR 29.00 on 01/12/2026 will be processed using Federal Bank Debit Card 1234. To cancel, visit https://www.sihub.in/managesi/federal T&CA -Federal Bank
+expect:
+  status: ignored
+  reason: upcoming e-mandate charge (not charged yet)

@@ -1,0 +1,10 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-ATMSBI-S
+text: Dear SBI Customer, Rs.500 withdrawn at SBI ATM S1BL000000000 from A/cX1005 on 01Apr26 Transaction Number 1234. Available Balance Rs.1234.00. If not withdrawn by you, forward this SMS to 9223008333 / call 1800111109 or 18001234
+expect:
+  amount_paise: 50000
+  direction: debit
+  channel: atm
+  balance_paise: 123400
+  date: '2026-04-01'
+  status: parsed

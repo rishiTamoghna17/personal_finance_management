@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JX-SBIUPI-S
+text: UPI-Mandate successfully Revoked by Google Play for Rs149.00 -SBI
+expect:
+  status: ignored
+  reason: UPI mandate cancelled

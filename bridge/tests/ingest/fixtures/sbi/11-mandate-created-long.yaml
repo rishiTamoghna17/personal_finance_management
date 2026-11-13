@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JX-SBIUPI-S
+text: 'Your UPI-Mandate for Rs.149.00 is successfully created towards GOOGLE INDIA DIGITAL SERVICES PVT LTD from A/c No: XXXXXX1005. UMN:00000000000000000000000000000000@oksbi. If not you, kindly report on 18001234. -SBI'
+expect:
+  status: ignored
+  reason: UPI mandate created

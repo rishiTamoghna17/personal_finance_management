@@ -35,4 +35,6 @@ Named groups the parser understands:
 | `target` | For `card_payment` from a bank account: the card's last four digits. |
 | `balance` | Bank profiles only. Card profiles may not capture a balance: an available limit is not money you have. |
 
+A transaction pattern may set `account: default` when the bank's SMS never names the account; the last digits then come from `BRIDGE_DEFAULT_ACCOUNTS` in `.env` (`profile=last4`). Dates without a year (`15AUG`) take the latest such date not after the SMS.
+
 Matching ignores case and treats any run of whitespace as one space.

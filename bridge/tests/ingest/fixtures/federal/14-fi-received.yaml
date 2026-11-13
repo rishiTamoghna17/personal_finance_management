@@ -1,0 +1,10 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDFIB-S
+text: NAME, you've received INR 12,345.00 in your Account XXXXXXXX1007. Woohoo! It was sent by Others on March 1, 2026. -Federal Bank
+expect:
+  amount_paise: 1234500
+  direction: credit
+  account_last4: '1007'
+  counterparty: Others
+  date: '2026-03-01'
+  status: parsed

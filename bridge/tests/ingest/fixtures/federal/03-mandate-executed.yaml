@@ -1,0 +1,10 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDBNK-S
+text: Dear Customer, Your mandate with ref no- 00000000000000000000000000000000@okhdfcbank registered against Google Play for Rs 149.00 successfully executed on 01-11-2026 10:11:12. TXN Ref No -100000000108- Federal Bank
+expect:
+  amount_paise: 14900
+  direction: debit
+  counterparty: Google Play
+  reference: '100000000108'
+  date: '2026-11-01'
+  status: parsed

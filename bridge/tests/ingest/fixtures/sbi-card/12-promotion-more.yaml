@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-SBICRD-S
+text: Shop on EMI at Flipkart and get 10% Instant Discount with your SBI Credit Card. Explore EMI Offers at https://sbicard.com/offers. T&C Apply.
+expect:
+  status: ignored
+  reason: promotion

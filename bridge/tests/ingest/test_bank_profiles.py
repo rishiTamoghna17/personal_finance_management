@@ -36,6 +36,8 @@ def test_fixture(path):
     assert parser.profiles()[header].id == path.parent.name
     result = parser.parse(header, case["text"], BASE)
     assert result.status == expect["status"], result.reason
+    if result.status == "unparsed":
+        return
     if result.status == "ignored":
         assert result.reason == expect["reason"]
         return
@@ -49,3 +51,15 @@ def test_fixture(path):
         assert local.date() == dt.date.fromisoformat(expect["date"])
     if "time" in expect:
         assert local.time() == dt.time.fromisoformat(expect["time"])
+
+
+def test_every_real_pattern_has_a_fixture():
+    covered = set()
+    for path in FIXTURES:
+        case = yaml.safe_load(path.read_text())
+        if case["expect"]["status"] in ("dropped", "unparsed"):
+            continue
+        header = parser.header_of(case["sender"])
+        covered.add(parser.parse(header, case["text"], BASE).pattern_ref)
+    patterns = {pat.ref for prof in set(parser.profiles().values()) for pat in prof.patterns}
+    assert patterns - covered == set()

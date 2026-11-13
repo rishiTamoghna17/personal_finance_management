@@ -1,0 +1,11 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-SBICRD-S
+text: 'Transaction of Rs.69.00 at AMAZON against E-mandate (SiHub ID - XXXXXXXXXX) registered by you at merchant has been debited to your SBI Credit Card ending 1006 on 06-11-26. To manage E-mandate, click: http://www.sbicard.com/emandates'
+expect:
+  amount_paise: 6900
+  direction: debit
+  channel: card
+  account_last4: '1006'
+  counterparty: AMAZON
+  date: '2026-11-06'
+  status: parsed

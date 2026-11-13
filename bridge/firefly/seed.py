@@ -6,7 +6,7 @@ from core.money import MoneyError, to_decimal_string, to_paise
 
 CURRENCY = "INR"
 BANK_ROLES = {"savings": "savingAsset", "salary": "defaultAsset", "current": "defaultAsset"}
-KINDS = {"bank", "credit_card", "loan"}
+KINDS = {"bank", "credit_card", "loan", "cash"}
 
 
 class SeedError(ValueError):
@@ -82,7 +82,11 @@ def build_plan(document):
         if number:
             payload["account_number"] = number
 
-        if kind == "bank":
+        if kind == "cash":
+            payload.update(type="asset", account_role="cashWalletAsset")
+            payload.pop("account_number", None)
+            balance = _paise(entry.get("opening_balance"), "opening_balance", name)
+        elif kind == "bank":
             role = entry.get("role")
             if role not in BANK_ROLES:
                 raise SeedError(f"{name}: role must be one of {sorted(BANK_ROLES)}")
@@ -113,8 +117,26 @@ def build_plan(document):
             )
             balance = _paise(entry.get("outstanding"), "outstanding", name)
 
-        if balance != 0:
-            payload["opening_balance"] = to_decimal_string(balance)
-            payload["opening_balance_date"] = opening_date
+        # Always sent, even when zero, so re-running the seed can also correct an earlier value.
+        payload["opening_balance"] = to_decimal_string(balance)
+        payload["opening_balance_date"] = opening_date
         payloads.append(payload)
     return payloads, planned
+
+
+def needs_update(payload, attrs):
+    """Does an existing Firefly account differ from accounts.yaml in number or opening balance?"""
+    def paise(value):
+        try:
+            return to_paise(str(value)) if value not in (None, "") else 0
+        except MoneyError:
+            return None
+
+    if (attrs.get("name") or "").strip() != payload["name"]:
+        return True
+    if (attrs.get("account_number") or None) != payload.get("account_number"):
+        return True
+    if paise(attrs.get("opening_balance")) != to_paise(payload["opening_balance"]):
+        return True
+    have_date = (attrs.get("opening_balance_date") or "")[:10]
+    return to_paise(payload["opening_balance"]) != 0 and have_date != payload["opening_balance_date"]

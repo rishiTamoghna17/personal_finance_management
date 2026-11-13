@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDBNK-S
+text: Dear Customer, You have successfully created a mandate on Google Play for a ASPRESENTED frequency starting from 01-11-2026 for a maximum amount of Rs 149.00 Mandate Ref No- 00000000000000000000000000000000@okhdfcbank - Federal Bank
+expect:
+  status: ignored
+  reason: mandate or card-on-file set up (not a payment)

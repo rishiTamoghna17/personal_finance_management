@@ -1,0 +1,9 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDFIB-S
+text: You've spent INR 45.00 at 10:11 on November 1, 2026. If it wasn't done by you, ping us on the Fi app. -Federal Bank
+expect:
+  amount_paise: 4500
+  direction: debit
+  date: '2026-11-01'
+  time: '10:11:00'
+  status: parsed

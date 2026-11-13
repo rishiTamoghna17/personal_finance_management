@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JM-HDFCBK-S
+text: UPI Activated! You've linked your Bank A/c to UPI on Google Pay. NEVER share OTP, PIN, card info. - HDFC Bank
+expect:
+  status: ignored
+  reason: UPI registration notice

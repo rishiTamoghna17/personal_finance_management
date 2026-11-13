@@ -1,0 +1,12 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDBNK-S
+text: Debited Rs 120.00 from a/c X1007 on 01Jul26 10:11 via UPI to NAME. Ref 100000000109.Bal Rs 1234.00. Not you?Call 18004251199 -Federal Bank
+expect:
+  amount_paise: 12000
+  direction: debit
+  account_last4: '1007'
+  counterparty: NAME
+  balance_paise: 123400
+  date: '2026-07-01'
+  time: '10:11:00'
+  status: parsed

@@ -86,6 +86,10 @@ BRIDGE_SMS_HMAC_SECRET = env("BRIDGE_SMS_HMAC_SECRET", "")
 INGEST_PROFILE_DIRS = [BASE_DIR / "ingest" / "profiles"]
 # The owner's own UPI IDs. Money to or from one of them moves between own accounts,
 # so it is never counted as spend or income on its own.
+# For banks whose SMS never name the account: "profile=last4,profile=last4" (e.g. "federal=1234").
+INGEST_DEFAULT_ACCOUNTS = dict(
+    pair.strip().split("=", 1) for pair in env("BRIDGE_DEFAULT_ACCOUNTS", "").split(",") if "=" in pair
+)
 INGEST_OWN_VPAS = {v.strip().lower() for v in env("BRIDGE_OWN_VPAS", "").split(",") if v.strip()}
 INGEST_SETTLE_SECONDS = int(env("INGEST_SETTLE_SECONDS", "600"))  # wait for the other half of a transfer
 INGEST_SAME_PAYMENT_WINDOW_MINUTES = 30

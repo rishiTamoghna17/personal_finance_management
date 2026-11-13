@@ -243,6 +243,10 @@ def process(raw_id):
             return raw.status
 
         p = result.parsed
+        if not p.account_last4:
+            _review(raw, ReviewItem.Reason.UNKNOWN_ACCOUNT,
+                    "this SMS does not say which account or card it is for")
+            return raw.status
         account, why = accounts.resolve(p.account_last4)
         if account is None:
             _review(raw, ReviewItem.Reason.UNKNOWN_ACCOUNT, why)

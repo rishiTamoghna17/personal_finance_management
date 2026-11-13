@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JM-HDFCBK-S
+text: UPI Transaction Declined for your HDFC Bank account ending 1001 for security reasons.For assistance, Call 18002586161/18001600
+expect:
+  status: ignored
+  reason: declined transaction

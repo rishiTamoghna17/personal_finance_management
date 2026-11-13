@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-MYSBIC-S
+text: E-statement of SBI Credit Card ending XX06 dated 01/11/2026 has been mailed. If not received, SMS ENRS to 5676791. Total Amt Due Rs 3193; Min Amt Due Rs 200; Payable by 21/11/2026. Click https://sbicard.com/quickpaynet to pay your bill
+expect:
+  status: ignored
+  reason: card statement generated

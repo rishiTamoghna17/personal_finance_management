@@ -3,8 +3,8 @@
 id: sbi-card
 account_kind: card
 # Sender seen on the owner's phone: JD-SBICRD-S (2026-11-13).
-senders: [SBICRD]
-date_formats: ["%d/%m/%y", "%d-%b-%Y"]
+senders: [SBICRD, MYSBIC]
+date_formats: ["%d/%m/%y", "%d-%b-%Y", "%d-%m-%y"]
 patterns:
   - id: limit-alert
     type: ignore
@@ -21,3 +21,63 @@ patterns:
     direction: debit
     channel: card
     match: 'Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) has been debited to your SBI Credit Card X+(?P<account>\d{4}) against recurring e-mandate.*? Merchant: (?P<counterparty>.+?) SiHub ID: \S+ Trxn\. Ref\. No\.: (?P<ref>\w+) Date: (?P<date>\d{2}-[A-Za-z]{3}-\d{4})\. Time: (?P<time>\d{2}:\d{2}:\d{2})'
+  # These SMS name no card. With one SBI card, BRIDGE_DEFAULT_ACCOUNTS (sbi-card=1234) can supply it;
+  # with two or more, leave it unset and these go to review.
+  # "We have received payment of Rs.1,234.00 via UPI & the same has been credited to your SBI Credit Card. ..."
+  - id: payment-received
+    direction: credit
+    channel: other
+    kind: card_payment
+    account: default
+    match: 'We have received payment of Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) via \w+ & the same has been credited to your SBI Credit Card'
+  # "Dear SBI Cardholder, payment of Rs. 123.00 for your SBI Credit Card has been successfully processed. ref no : YSBI..."
+  - id: payment-processed
+    direction: credit
+    channel: other
+    kind: card_payment
+    account: default
+    match: 'payment of Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) for your SBI Credit Card has been successfully processed\. ref no ?: ?(?P<ref>\w+)'
+  - id: statement-mailed
+    type: ignore
+    reason: card statement generated
+    match: 'E-statement of SBI Credit Card ending'
+  - id: upcoming-emandate
+    type: ignore
+    reason: upcoming e-mandate charge (not charged yet)
+    match: 'your payment of INR [\d,.]+ at .+ is due on .+ will be processed through your credit card ending \d{4} as per e-Mandate'
+  - id: promotion
+    type: ignore
+    reason: promotion
+    match: '(eligible for up to \d+ complimentary Add-on cards|use Flexipay EMI feature|Zero Processing Fee and .+ Flexipay EMI|Instant Discount on iPhone with your SBI Credit Card)'
+  - id: wallet-registration
+    type: ignore
+    reason: app registration notice
+    match: 'Congratulations on successful Samsung Pay registration'
+  - id: auto-debit-bounced
+    type: ignore
+    reason: card auto-debit failed (no payment made)
+    match: 'Payment of Rs\.? ?[\d,.]+ via Auto Debit has bounced'
+  - id: promotion-more
+    type: ignore
+    reason: promotion
+    match: '^(Travel on your mind\? Save up to|Special Offer! Enjoy ZERO Processing Fee|Convert your Trxn of Rs|Shop on EMI at|Gift financial freedom|Enjoy Zero Processing Fee on Flexipay)'
+  - id: security-notice
+    type: ignore
+    reason: security notice
+    match: 'Never download Mobile Apps from unverified links'
+  # "Transaction of Rs.69.00 at AMAZON against E-mandate (SiHub ID - <id>) registered by you at merchant has been
+  #  debited to your SBI Credit Card ending 1234 on 06-11-26."
+  - id: emandate-debit-short
+    direction: debit
+    channel: card
+    match: 'Transaction of Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) at (?P<counterparty>.+?) against E-mandate \(SiHub ID - \S+\) registered by you at merchant has been debited to your SBI Credit Card ending (?P<account>\d{4}) on (?P<date>\d{2}-\d{2}-\d{2})'
+  # Credit card used through UPI: "Rs.123.00 spent on your SBI Credit Card ending with 1234 at MERCHANT on 01-10-26
+  #  via UPI (Ref No. 123456789012). Trxn. not done by you? ..."
+  - id: spend-upi
+    direction: debit
+    channel: upi
+    match: 'Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) spent on your SBI Credit Card ending with (?P<account>\d{4}) at (?P<counterparty>.+?) on (?P<date>\d{2}-\d{2}-\d{2}) via UPI \(Ref No\. (?P<ref>\d+)\)'
+  - id: survey
+    type: ignore
+    reason: survey invitation
+    match: 'share your inputs through a quick survey'

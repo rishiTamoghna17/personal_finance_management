@@ -1,0 +1,9 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDFIB-S
+text: 'Withdrawn: INR 1,000.00 | This transaction occurred on June 1, 2026 at 10:11. If it wasn''t done by you, ping us on the Fi app. -Federal Bank'
+expect:
+  amount_paise: 100000
+  direction: debit
+  channel: atm
+  date: '2026-06-01'
+  status: parsed

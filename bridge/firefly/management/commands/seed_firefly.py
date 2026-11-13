@@ -4,11 +4,11 @@ import yaml
 from django.core.management.base import BaseCommand, CommandError
 
 from firefly.client import FireflyClient, FireflyError
-from firefly.seed import CURRENCY, SeedError, build_plan
+from firefly.seed import CURRENCY, SeedError, build_plan, needs_update
 
 
 class Command(BaseCommand):
-    help = "Set INR as Firefly's primary currency and create accounts from accounts.yaml. Safe to re-run."
+    help = "Set INR as Firefly's primary currency, and create or correct accounts from accounts.yaml. Safe to re-run."
 
     def add_arguments(self, parser):
         parser.add_argument("path", help="Path to accounts.yaml, or - to read it from stdin")
@@ -37,17 +37,21 @@ class Command(BaseCommand):
             client.enable_currency(CURRENCY)
             client.make_primary_currency(CURRENCY)
             self.stdout.write(f"currency {CURRENCY} enabled and set as primary")
-            existing = {
-                item["attributes"]["name"].strip().lower()
-                for kind in ("asset", "liabilities")
-                for item in client.list_accounts(kind)
-            }
+            items = [item for kind in ("asset", "liabilities") for item in client.list_accounts(kind)]
+            by_name = {item["attributes"]["name"].strip().lower(): item for item in items}
+            by_number = {item["attributes"].get("account_number"): item for item in items
+                         if item["attributes"].get("account_number")}
             for payload in payloads:
-                if payload["name"].lower() in existing:
+                # Same name, or (after a rename in accounts.yaml) same account digits.
+                item = by_name.get(payload["name"].lower()) or by_number.get(payload.get("account_number"))
+                if item is None:
+                    client.create_account(payload)
+                    self.stdout.write(self.style.SUCCESS(f"created  {payload['name']}"))
+                elif needs_update(payload, item["attributes"]):
+                    client.update_account(item["id"], payload)
+                    self.stdout.write(self.style.SUCCESS(f"updated  {payload['name']}"))
+                else:
                     self.stdout.write(f"exists   {payload['name']}")
-                    continue
-                client.create_account(payload)
-                self.stdout.write(self.style.SUCCESS(f"created  {payload['name']}"))
         except FireflyError as exc:
             raise CommandError(str(exc)) from None
 

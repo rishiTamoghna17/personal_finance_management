@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-SBICRD-S
+text: Never download Mobile Apps from unverified links/sources. They could be fake Apps that look like genuine Apps, made by fraudsters to access your data - SBI Card
+expect:
+  status: ignored
+  reason: security notice

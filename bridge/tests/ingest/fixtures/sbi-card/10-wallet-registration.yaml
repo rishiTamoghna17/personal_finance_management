@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-SBICRD-S
+text: Dear Cardholder, Congratulations on successful Samsung Pay registration for your SBI Credit Card ending 1006.
+expect:
+  status: ignored
+  reason: app registration notice

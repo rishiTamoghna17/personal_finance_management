@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JX-SBIUPI-S
+text: Dear UPI User, UPI AutoPay for MUTUAL FUNDS ICCL AUTOPAY debit of Rs.1000.00 is scheduled on .01/12/26, 00000000000000000000000000000000@oksbi. Please ensure sufficient balance in your account. -SBI
+expect:
+  status: ignored
+  reason: UPI AutoPay scheduled (not charged yet)

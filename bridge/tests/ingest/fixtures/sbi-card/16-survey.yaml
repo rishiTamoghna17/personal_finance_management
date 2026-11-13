@@ -1,0 +1,6 @@
+# Owner's real SMS (live, 2026-11-13), masked: name and link replaced.
+sender: JM-SBICRD-S
+text: "Dear NAME, We at SBI Card are committed to enhance your experience. Please take a moment to share your inputs through a quick survey. Click here to start https://acl.cc/SBICRD/XXXXXXX"
+expect:
+  status: ignored
+  reason: survey invitation

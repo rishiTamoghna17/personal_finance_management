@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JX-SBIUPI-S
+text: You've successfully linked your Bank A/C on Paytm UPI App. If it's not you, visit your branch -SBI
+expect:
+  status: ignored
+  reason: UPI registration notice

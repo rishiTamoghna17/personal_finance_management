@@ -1,0 +1,12 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-CBSSBI-S
+text: Dear Customer,Your A/C XXXXX001005 has a credit by NACH- COMPANY LIMITED of Rs 12.00 on 01/02/26. Avl Bal Rs 1,234.00. Download YONO-SBI
+expect:
+  amount_paise: 1200
+  direction: credit
+  channel: nach
+  account_last4: '1005'
+  counterparty: COMPANY LIMITED
+  balance_paise: 123400
+  date: '2026-02-01'
+  status: parsed

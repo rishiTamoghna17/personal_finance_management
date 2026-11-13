@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: VM-FEDBNK-S
+text: 'Hi, txn of Rs. 1000 using card XX1234 failed due to insufficient funds. Current Bal: Rs.12.00. Call 18004251199 if txn not initiated by you -Federal Bank'
+expect:
+  status: ignored
+  reason: failed payment

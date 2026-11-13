@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-AXISBK-S
+text: Registration for Samsung Pay app has started. Do not share your card details/OTP/CVV to avoid financial loss. If not you, call 18004195577 - Axis Bank
+expect:
+  status: ignored
+  reason: app registration notice

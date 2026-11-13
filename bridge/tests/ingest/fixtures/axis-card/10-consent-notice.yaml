@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JD-AXISBK-S
+text: You have successfully updated your consent management request. Not you? Call us on 18004195577 - Axis Bank
+expect:
+  status: ignored
+  reason: consent management notice

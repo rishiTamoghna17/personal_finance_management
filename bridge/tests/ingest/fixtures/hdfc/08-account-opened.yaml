@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JM-HDFCBK-S
+text: 'Dear Customer, Your new HDFC Bank A/c is active ready for use. Your A/c details mailed to your registered email ID. Note: Never share your A/c card details.'
+expect:
+  status: ignored
+  reason: account opened notice

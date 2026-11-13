@@ -35,6 +35,7 @@ class Pattern:
     channel: str = ""
     kind: str = "payment"
     reason: str = ""
+    account_from_default: bool = False
 
 
 @dataclass(frozen=True)
@@ -106,8 +107,11 @@ def _load_profile(path):
         if account_kind == "card" and "balance" in groups:
             # A card's "available limit" is not a balance and never an asset (rule 8).
             raise ProfileError(f"{pref}: card profiles may not capture a balance")
+        account_from_default = raw.get("account") == "default"
         if ptype == "transaction":
-            missing = {"amount", "account"} - groups
+            # Some banks never name the account (e.g. one Federal Bank account); the owner then
+            # sets its last digits in BRIDGE_DEFAULT_ACCOUNTS instead.
+            missing = ({"amount"} if account_from_default else {"amount", "account"}) - groups
             if missing:
                 raise ProfileError(f"{pref}: transaction patterns need groups {sorted(missing)}")
             if raw.get("direction") not in DIRECTIONS:
@@ -127,6 +131,7 @@ def _load_profile(path):
                 channel=raw.get("channel", ""),
                 kind=raw.get("kind", "payment"),
                 reason=raw.get("reason", ""),
+                account_from_default=account_from_default,
             )
         )
     if not patterns:
@@ -176,15 +181,28 @@ def _occurred_at(groups, profile, sent_at):
     date_text = (groups.get("date") or "").strip()
     if not date_text:
         return sent_at
-    day = None
+    day, has_year = None, True
     for fmt in profile.date_formats:
+        has_year = "%y" in fmt or "%Y" in fmt
         try:
-            day = dt.datetime.strptime(date_text, fmt).date()
+            if has_year:
+                day = dt.datetime.strptime(date_text, fmt).date()
+            else:  # parse in a leap year so "29FEB" is valid; the real year is set below
+                day = dt.datetime.strptime(f"{date_text} 2000", f"{fmt} %Y").date()
             break
         except ValueError:
             continue
     if day is None:
         return sent_at
+    if not has_year:  # the SMS gave no year ("15AUG"): the latest such date not after the SMS
+        sent_day = sent_at.astimezone(IST).date()
+        candidates = []
+        for year in range(sent_day.year, sent_day.year - 5, -1):  # 29 Feb may need a leap year
+            try:
+                candidates.append(day.replace(year=year))
+            except ValueError:
+                continue
+        day = next((c for c in candidates if c <= sent_day + dt.timedelta(days=1)), candidates[-1])
     time_text = (groups.get("time") or "").strip()
     for fmt in ("%H:%M:%S", "%H:%M"):
         try:
@@ -227,6 +245,10 @@ def parse(header, body, sent_at):
             )
         except MoneyError as exc:
             return ParseResult("unparsed", reason=f"{pattern.ref}: bad amount ({exc})", pattern_ref=pattern.ref)
+        if not parsed.account_last4 and pattern.account_from_default:
+            parsed.account_last4 = settings.INGEST_DEFAULT_ACCOUNTS.get(profile.id, "")
+            if not parsed.account_last4:
+                return ParseResult("parsed", parsed=parsed, pattern_ref=pattern.ref)  # -> review: unknown account
         if not parsed.account_last4:
             return ParseResult("unparsed", reason=f"{pattern.ref}: no account digits", pattern_ref=pattern.ref)
         if parsed.type == "transaction" and parsed.amount_paise <= 0:

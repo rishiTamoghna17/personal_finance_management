@@ -1,0 +1,6 @@
+# From the owner's SMS backup (2026-11-13), masked: digits, names, IDs and links replaced; wording and layout kept.
+sender: JX-SBIUPI-S
+text: IRCTC CF has requested Rs1000.00 frm u on Google Pay app. Once approved, money will be debited frm ur a/c -SBI
+expect:
+  status: ignored
+  reason: collect request (not a payment)
