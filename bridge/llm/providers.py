@@ -53,3 +53,16 @@ def ask(system, user, transport=None):
 
 def is_cloud():
     return settings.LLM_PROVIDER in ("gemini", "groq")
+
+
+def chat(messages, tools=None, transport=None):
+    """One chat turn with optional tool definitions. Local model only (Ollama): the advisor sends ledger summaries,
+    including payee names, which must not leave this machine. Returns {"content", "tool_calls"}."""
+    if settings.LLM_PROVIDER != "ollama":
+        raise LLMError("the advisor chat runs only on the local model (LLM_PROVIDER=ollama)")
+    payload = {"model": settings.LLM_MODEL, "stream": False, "options": {"temperature": 0.2}, "messages": messages}
+    if tools:
+        payload["tools"] = tools
+    body = _post(f"{settings.LLM_OLLAMA_URL}/api/chat", payload, transport=transport)
+    message = body.get("message") or {}
+    return {"content": message.get("content") or "", "tool_calls": message.get("tool_calls") or []}

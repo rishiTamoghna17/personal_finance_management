@@ -147,6 +147,7 @@ def progress(today, client=None):
                          + (1 if target_date.day >= today.day else 0))
             per_month = -(-left // months)  # round up to the paisa
         rows.append({"id": str(piggy["id"]), "name": a.get("name"), "target_paise": target, "saved_paise": saved,
+                     "start_date": (a.get("start_date") or "")[:10] or None,
                      "left_paise": left, "percent": (saved * 100 // target) if target else 0,
                      "target_date": target_date.isoformat() if target_date else None,
                      "needed_per_month_paise": per_month})

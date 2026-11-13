@@ -114,6 +114,13 @@ class FireflyClient:
     def update_bill(self, bill_id, payload):
         return self._request("PUT", f"bills/{bill_id}", json=payload)["data"]
 
+    def insight(self, path, start, end):
+        """GET insight/<path> (e.g. "expense/category"): [{"name", "amount" (positive decimal string)}], INR only."""
+        body = self._request("GET", f"insight/{path}", params={"start": start.isoformat(), "end": end.isoformat()})
+        rows = body if isinstance(body, list) else body.get("data", [])
+        return [{"name": r.get("name", ""), "amount": str(r.get("difference", "0")).lstrip("-")}
+                for r in rows if r.get("currency_code") == "INR"]
+
     def expense_by_payee(self, start, end):
         """[(expense account name, amount spent as a positive decimal string)] between two dates, INR only."""
         body = self._request("GET", "insight/expense/expense", params={"start": start.isoformat(), "end": end.isoformat()})

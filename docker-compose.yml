@@ -159,11 +159,27 @@ services:
     networks: [internal, ai]
     depends_on: [categorizer]
 
+  # M6: temporary local test chat page for the advisor, until the Phase 2 app exists. 127.0.0.1 only.
+  # It adds the bridge token itself and passes only /api/v1/chat, /digest and /alerts.
+  advisor-ui:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    environment:
+      BRIDGE_API_TOKEN: ${BRIDGE_API_TOKEN:?set in .env}
+      NGINX_ENVSUBST_FILTER: "^BRIDGE_API_TOKEN$$"
+    volumes:
+      - ./docker/advisor-ui/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./docker/advisor-ui/index.html:/usr/share/nginx/html/index.html:ro
+    ports:
+      - "127.0.0.1:3020:80"
+    networks: [internal]
+    depends_on: [bridge]
+
   bridge:
     <<: *bridge
     command: >-
       sh -c "python manage.py migrate --noinput &&
-      gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --access-logfile -"
+      gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 180 --access-logfile -"
     ports:
       - "127.0.0.1:8000:8000"
 

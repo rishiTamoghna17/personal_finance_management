@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "statements",
     "llm",
     "wealth",
+    "advisor",
 ]
 
 MIDDLEWARE = [

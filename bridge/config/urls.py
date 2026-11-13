@@ -1,5 +1,6 @@
 from django.urls import path
 
+from advisor.views import AlertsView, ChatView, DigestView
 from core.views import HealthView
 from firefly.views import AccountsView
 from ingest.views import IngestEmailView, IngestSmsView, ReviewActionView, ReviewListView
@@ -17,4 +18,7 @@ urlpatterns = [
     path("api/v1/upcoming", UpcomingView.as_view(), name="upcoming"),
     path("api/v1/goals", GoalsView.as_view(), name="goals"),
     path("api/v1/holdings", HoldingsView.as_view(), name="holdings"),
+    path("api/v1/chat", ChatView.as_view(), name="chat"),
+    path("api/v1/digest", DigestView.as_view(), name="digest"),
+    path("api/v1/alerts", AlertsView.as_view(), name="alerts"),
 ]

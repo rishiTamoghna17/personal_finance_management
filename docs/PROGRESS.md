@@ -3,9 +3,9 @@
 Update this file at the start and end of every milestone. It is how a new session knows where things stand.
 
 ## Now
-- Approved milestone: none. M5 finished 2026-11-14; M6 (Telegram advisor) not planned yet.
-- Status: M1-M4 running: SMS from the phone, bank emails from two Gmail accounts, statement PDFs, local AI categoriser and checked fallback reader.
-- Next step: plan M6 when the owner asks; owner also fills 1 Nov opening balances in `accounts.yaml` and categorises payees on http://127.0.0.1:3010 (neither blocking).
+- Approved milestone: none. M6 finished 2026-11-14. Next in the spec: M7 (deployment, backups, HTTPS); Phase 2 (APK) still needs the owner's approval.
+- Status: M1-M6 running: SMS from the phone, bank emails from two Gmail accounts, statement PDFs, local AI categoriser and checked fallback reader.
+- Next step: plan M7 when the owner asks; owner also fills 1 Nov opening balances in `accounts.yaml` and categorises payees on http://127.0.0.1:3010 (neither blocking).
 
 ## Milestones
 | ID | Scope | Status | Approved on | Finished on |
@@ -15,7 +15,7 @@ Update this file at the start and end of every milestone. It is how a new sessio
 | M3 | Gmail alerts, statement PDFs | Finished | 2026-11-13 | 2026-11-13 |
 | M4 | AI categoriser, LLM fallback | Finished | 2026-11-13 | 2026-11-14 |
 | M5 | Goals, EMI, net worth, CAS, credit report | Finished (Experian reader left out) | 2026-11-14 | 2026-11-14 |
-| M6 | Telegram advisor | Not started | | |
+| M6 | Advisor API (chat, digest, alerts) + temporary test chat | Finished | 2026-11-14 | 2026-11-14 |
 | M7 | Deployment, backups, HTTPS | Not started | | |
 | P2 | Android APK | Not approved | | |
 
@@ -423,6 +423,58 @@ Important for the build: the SMS secret filter, applied to emails, flags far too
 - Secrets in git: none (`goals.yaml`, `accounts.yaml`, `.env`, PDFs ignored).
 - Left out by the owner's decision: Experian reader. Left for later: CAMS/KFintech CAS if non-demat funds are held.
 - 382 tests pass.
+
+## M6 plan (presented and approved 2026-11-14)
+
+### Checked before planning (2026-11-14)
+- qwen2.5:3b (the Ollama container) supports tool calls: 1-7 s per answer once loaded, ~55 s for the first answer after the model loads. It does **not** reliably decide to look data up (asked "am I on track for my bike goal?" it answered without calling the goal tool). So the bridge must not rely on the model to fetch numbers.
+- Firefly gives spending per category and per payee for any date range (`insight/expense/category`, `insight/expense/expense`).
+
+### Scope
+1. **Summaries** (bridge code, read-only, integer paise): spending by category and top payees for a date range, this month vs last month, upcoming EMIs and card dues, goals, net worth now and by month, holdings, open review items. Computed by code, never by the model.
+2. **`POST /api/v1/chat`** `{message, history}` -> `{answer, facts_used}`.
+   - Every question gets a compact fact sheet (this month's spend by category vs last month, upcoming 30 days, goals, net worth, holdings date) chosen by simple keyword matching, plus tools the model may call for anything else (another month or date range, one category, one payee).
+   - **Number check:** every rupee amount in the answer must appear in, or be a simple sum/difference of, the facts given; otherwise the bridge asks the model once more, and if it still fails, answers with the facts themselves. Same idea as the M4 fallback check.
+   - Only summaries reach the model: never raw SMS/email text, account or card numbers, or references. Local model only (Ollama, no internet); if a cloud provider is ever chosen, payee names are left out.
+   - The bridge keeps no chat history; the client sends the last few turns.
+   - Advice only: it can never move money (rule 2), and it says it is not a licensed adviser when asked about specific investments.
+3. **`GET /api/v1/digest?week=YYYY-Www`**: the weekly digest as data (spend vs same days last month, top categories, upcoming dues, goal progress, net worth change) plus a short text written from those numbers by code; the model only rephrases, and its text passes the same number check.
+4. **`GET /api/v1/alerts`**: computed by rules, no model: card due unpaid; card due or EMI in the next 3 days; a category this month above 1.5x its 3-month average; a goal behind its needed pace; open review items; CAS older than 45 days.
+5. **Temporary test chat page** (until the APK): one static page served by a small `advisor-ui` nginx container on **127.0.0.1:3020 only**, which forwards only `/api/v1/chat`, `/digest` and `/alerts` to the bridge and adds the API token itself (the token is never in the page). Removed when the app exists.
+6. **Tests:** summaries against the fake Firefly; the number check rejects invented amounts; no account digits, references or message text in what is sent to the model; alert rules; endpoints need the token and are read-only. One live run with the real model.
+
+### No new Python dependencies. One new container (nginx, already used). No cost.
+
+### Left out of M6
+- Phone notifications for digest and alerts (Phase 2 app).
+- Any cloud model.
+
+### Questions for the owner
+1. **Model:** keep qwen2.5:3b (fast, small, weaker answers), or try qwen2.5:7b (better at reasoning and tool use, ~2-3x slower on the CPU, needs Docker's memory raised from 7.7 GB to about 10 GB in Docker Desktop settings)?
+2. **Alerts:** are the rules in item 4 the ones you want? Add a low-balance alert (and at what amount)?
+3. **Digest day:** which day of the week should the digest cover (e.g. Monday to Sunday)?
+
+### Owner's answers (2026-11-14)
+- "Approved" without answering the three questions, so the defaults in the plan are used: qwen2.5:3b kept; the alert rules as listed, no low-balance alert; digest weeks Monday to Sunday. Each can be changed later.
+
+### M6 progress (2026-11-14)
+- New `advisor` app. `POST /api/v1/chat`, `GET /api/v1/digest`, `GET /api/v1/alerts` (token, read-only).
+- Facts computed by code from Firefly insight (spending by category and payee, income) and the M5 data; CAS revaluations left out of spending. Only names and totals reach the model; a test checks no account digits or message text do.
+- Chat: fact sheet in the prompt plus two tools (`spending_between`, `income_between`); local model only (`providers.chat` refuses cloud providers). Number check: every rupee amount (₹, Rs, INR, rupees, lakh, crore) must match a fact, or a sum or difference of two, within Rs 1 (0.5% for rounded lakh figures); one retry, then the plain facts.
+- Digest: Monday-Sunday, numbers **and** wording from code (the plan had the model rephrase it; dropped, as code text cannot be wrong and the 3B model adds nothing). Alerts: unpaid card due, due within 3 days, category above 1.5x its 3-month average (only once 3 whole months exist after the ledger start), goal behind pace, review items waiting, CAS older than 45 days.
+- Test page: `advisor-ui` (nginx) on 127.0.0.1:3020 only; adds the token itself; passes only chat, digest and alerts (checked: other routes 404, not reachable on the Wi-Fi address, token not in the page).
+- Found in the live run and fixed: the 3B model left the EMI out of "what do I need to pay" (so answers about dues, goals and net worth now end with "From your records:" and the complete list from code); it said "you spent ₹0 in September" (periods before the ledger start are now reported as not tracked, in chat and digest); it gave the total of all funds as one fund's value (each holding's value is now in the facts). The number check cannot catch a real figure used for the wrong thing, so answers should be read as help, not as statements.
+- Bridge gunicorn now 3 workers with a 180 s timeout (a chat answer can take up to a minute when the model has just loaded).
+- 405 tests pass. Live re-run after the fixes: dues answer lists both items, September reported as not tracked, a question about one fund gives that fund's own value.
+
+### M6 closing check (2026-11-14, by hand: /drift-review is not installed)
+- Rule 2: advisor endpoints only read; `POST /chat` changes nothing. The model is told it cannot move money and has no tool that could.
+- Rule 3 and privacy: the model receives only names and totals (test-checked: no account digits or message text); chat text is not logged (checked) or stored; the AI containers still have no internet (api.openai.com does not resolve); chat refuses any cloud provider.
+- Rule 4: no float in advisor or wealth code; amounts are paise, shown as ₹ by code.
+- Rule 9: amounts in answers must match the facts; periods before the ledger start are "not tracked", never zero.
+- Ports: the test page is on 127.0.0.1:3020 only; the token is added by nginx and is not in the page.
+- Secrets in git: none.
+- 405 tests pass.
 
 ## Open questions for the owner
 - How many accounts at each bank (HDFC, SBI, ICICI, HSBC, AXIS), and savings, salary or current?

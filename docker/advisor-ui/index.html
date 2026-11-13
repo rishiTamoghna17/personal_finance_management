@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Money advisor (test)</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --text:#1d1d1b; --muted:#6b6b66; --line:#e3e3de; --me:#1f5f4a; --me-text:#fff; --warn:#a33a1c; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --card:#1f1f1d; --text:#ecece8; --muted:#a0a09a; --line:#33332f; --me:#2f7d63; --me-text:#fff; --warn:#e07a5a; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 -apple-system, system-ui, sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:16px; display:flex; flex-direction:column; min-height:100vh; gap:12px; }
+  header { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  h1 { font-size:18px; margin:0; }
+  .note { color:var(--muted); font-size:13px; }
+  button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:8px; padding:6px 12px; cursor:pointer; }
+  button.primary { background:var(--me); color:var(--me-text); border-color:var(--me); }
+  button:disabled { opacity:.5; cursor:default; }
+  #log { flex:1; display:flex; flex-direction:column; gap:10px; }
+  .msg { max-width:88%; padding:10px 12px; border-radius:12px; background:var(--card); border:1px solid var(--line); white-space:pre-wrap; }
+  .me { align-self:flex-end; background:var(--me); color:var(--me-text); border-color:var(--me); }
+  .meta { font-size:12px; color:var(--muted); margin-top:4px; }
+  .warn { color:var(--warn); }
+  form { display:flex; gap:8px; position:sticky; bottom:0; background:var(--bg); padding:8px 0 4px; }
+  textarea { flex:1; font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--text); resize:none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>Money advisor</h1><div class="note">Temporary test page on this Mac. Answers come from your ledger through the local model; nothing leaves this computer.</div></div>
+    <div><button id="digest">Weekly digest</button> <button id="alerts">Alerts</button> <button id="clear">Clear</button></div>
+  </header>
+  <div id="log"></div>
+  <form id="f">
+    <textarea id="q" rows="2" placeholder="Ask, e.g. How much did I spend on food this month?"></textarea>
+    <button class="primary" id="send">Send</button>
+  </form>
+</main>
+<script>
+const log = document.getElementById('log'), q = document.getElementById('q'), send = document.getElementById('send');
+let history = [];
+function add(text, me, meta, warn) {
+  const d = document.createElement('div'); d.className = 'msg' + (me ? ' me' : ''); d.textContent = text;
+  if (meta) { const m = document.createElement('div'); m.className = 'meta' + (warn ? ' warn' : ''); m.textContent = meta; d.appendChild(m); }
+  log.appendChild(d); d.scrollIntoView({behavior: 'smooth', block: 'end'}); return d;
+}
+async function call(path, opts) {
+  const r = await fetch(path, opts); const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.detail || ('HTTP ' + r.status)); return body;
+}
+async function ask(text) {
+  add(text, true); const wait = add('Thinking… (the first answer after a restart can take a minute)');
+  send.disabled = true;
+  try {
+    const body = await call('/api/v1/chat', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                             body: JSON.stringify({message: text, history})});
+    wait.remove();
+    add(body.answer, false, body.checked ? 'Every amount checked against your data' + (body.tools_used.length ? ' · looked up: ' + body.tools_used.join(', ') : '')
+                                         : 'The model\'s wording failed the number check, so these are the raw figures', !body.checked);
+    history.push({role: 'user', content: text}, {role: 'assistant', content: body.answer}); history = history.slice(-6);
+  } catch (e) { wait.remove(); add('Error: ' + e.message, false, null, true); }
+  send.disabled = false;
+}
+document.getElementById('f').onsubmit = e => { e.preventDefault(); const t = q.value.trim(); if (t) { q.value = ''; ask(t); } };
+q.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('f').requestSubmit(); } });
+document.getElementById('digest').onclick = async () => {
+  try { const d = await call('/api/v1/digest'); add(d.text, false, 'Weekly digest ' + d.week + ' (computed by code)'); }
+  catch (e) { add('Error: ' + e.message, false, null, true); }
+};
+document.getElementById('alerts').onclick = async () => {
+  try { const d = await call('/api/v1/alerts');
+        add(d.alerts.length ? d.alerts.map(a => '• [' + a.severity + '] ' + a.message).join('\n') : 'No alerts.', false, 'Alerts (fixed rules)'); }
+  catch (e) { add('Error: ' + e.message, false, null, true); }
+};
+document.getElementById('clear').onclick = () => { history = []; log.innerHTML = ''; };
+</script>
+</body>
+</html>

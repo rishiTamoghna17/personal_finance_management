@@ -106,6 +106,13 @@ Bank profiles are written only from your real, masked SMS. None exist yet.
 | `GET /api/v1/goals` | Each goal's target, saved amount, and what is needed per month |
 | `GET /api/v1/holdings` | Investments from the latest CAS, with its date |
 
+## Advisor (M6)
+
+Ask questions about your money in plain words. Answers are written by the local model (Ollama, on this Mac) from figures the bridge computes; every rupee amount is checked against those figures.
+
+- Test page (until the Android app): http://127.0.0.1:3020, this Mac only.
+- `POST /api/v1/chat` `{"message": "...", "history": [...]}`, `GET /api/v1/digest?week=2026-W46`, `GET /api/v1/alerts`.
+
 ## Tests
 
 ```bash

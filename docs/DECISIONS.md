@@ -4,6 +4,8 @@ Add one entry whenever a design choice is made or the spec changes. Newest first
 
 Format: date · decision · why · who approved
 
+- 2026-11-14 · Spec change: no Telegram. The advisor (chat, digest, alerts) is a bridge API used by the Phase 2 app's chat screen; a temporary local test chat page is used until then. M6 renamed "Advisor API" · owner wants one chatbot in the APK, not Telegram · owner ("yes" to the proposed spec change)
+
 - 2026-11-14 · Investments are Firefly asset accounts revalued to the monthly CAS value (tag `valuation`, counterparty "Market value change"); SIP debits are transfers into them · keeps Firefly's net worth complete without inventing prices (rule 9); no AMFI NAV feed · owner
 - 2026-11-14 · Groww Trade API not used · trading API (keys can place orders), stocks only, no current value on the free tier, daily token expiry · owner
 - 2026-11-14 · Card dues and EMI schedules live in the bridge; EMIs are also Firefly bills; card dues are not bills (amount changes monthly) · fixed EMI amounts suit bills, card dues do not · Claude, within M5

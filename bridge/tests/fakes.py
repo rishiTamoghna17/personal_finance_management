@@ -15,6 +15,8 @@ class FakeFirefly:
         self.piggy_banks = []
         self.bills = []
         self.expenses = []  # [(payee name, "123.45")] returned by insight/expense/expense
+        # Other insight paths: {"expense/category": fn(start, end) -> [(name, "123.45")], ...}
+        self.insights = {}
         self.calls = []
         self.fail_with = None
         self.page_size = page_size
@@ -43,8 +45,14 @@ class FakeFirefly:
             total_pages = max(1, -(-len(rows) // self.page_size))
             chunk = rows[(page - 1) * self.page_size : page * self.page_size]
             return httpx.Response(200, json={"data": chunk, "meta": {"pagination": {"total_pages": total_pages}}})
-        if request.method == "GET" and path == "insight/expense/expense":
-            rows = [{"name": n, "difference": "-" + a, "currency_code": "INR"} for n, a in self.expenses]
+        if request.method == "GET" and path.startswith("insight/"):
+            kind = path.removeprefix("insight/")
+            start, end = (request.url.params.get(k) for k in ("start", "end"))
+            if kind in self.insights:
+                pairs = self.insights[kind](start, end)
+            else:
+                pairs = self.expenses if kind == "expense/expense" else []
+            rows = [{"name": n, "difference": "-" + a, "currency_code": "INR"} for n, a in pairs]
             return httpx.Response(200, json=rows)
         if request.method == "GET" and path.startswith("accounts/"):
             account = next(a for a in self.accounts if a["id"] == path.split("/")[1])

@@ -36,7 +36,7 @@ Handle Indian formats: UPI references and VPAs, IMPS, NEFT, NACH, card last-4, l
   - Celery tasks: Gmail alert polling, statement PDF unlock and reconciliation, CAS and credit-report parsing, monthly net worth snapshot.
   - LLM fallback only for messages the profiles cannot parse. Mask account numbers and names before sending.
 - Bank and card parsing lives in per-bank profile files, not one large parser.
-- Advisor: Telegram bot. Weekly digest (spend vs last month, top categories, upcoming EMIs and card due dates, goal progress, net worth change), alerts, and chat answered through function calls over ledger summaries, never raw data.
+- Advisor: built into the bridge as a versioned, token-authenticated API (chat, weekly digest, alerts), used by the Phase 2 app's chat screen. Weekly digest (spend vs last month, top categories, upcoming EMIs and card due dates, goal progress, net worth change), alerts, and chat answered through function calls over ledger summaries, never raw data. No Telegram. Until the app exists, a temporary local test chat page (127.0.0.1 only) is used to try it.
 
 ## Data rules
 - Integer paise in the bridge, decimal strings to Firefly, never floats.
@@ -59,14 +59,14 @@ Handle Indian formats: UPI references and VPAs, IMPS, NEFT, NACH, card last-4, l
 - M3. Gmail alert polling and statement PDF reconciliation.
 - M4. AI categoriser wired in, plus the LLM fallback parser.
 - M5. Goals, EMI schedule, net worth snapshots, CAS and credit-report import.
-- M6. Telegram digest, alerts and chat.
+- M6. Advisor API: chat, weekly digest and alerts (for the Phase 2 app), plus a temporary local test chat page.
 - M7. Deployment guide, backups, HTTPS.
 Until Phase 2, SMS arrives from an Android SMS-forwarder app posting to /ingest/sms.
 
 ## Phase 2 (Android APK)
 - Sideloaded personal APK, not a Play Store app.
 - Reads bank SMS on the device, drops OTPs on the device, sends the rest to the bridge. Queues offline and retries.
-- Screens: dashboard, transactions, goals, net worth, chat. Biometric lock.
+- Screens: dashboard, transactions, goals, net worth, chat (the advisor). Digest and alerts arrive as phone notifications. Biometric lock.
 - Flutter or Kotlin: recommend with reasons, then wait for the owner's choice.
 
 ## Tests required
