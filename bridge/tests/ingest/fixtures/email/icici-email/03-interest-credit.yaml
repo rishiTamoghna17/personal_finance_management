@@ -1,0 +1,13 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: ICICI Bank <customercare@icici.bank.in>
+text: 'Transaction alert for your ICICI Bank account
+
+  Dear Customer, Greetings from ICICI Bank. Your ICICI Bank Account XX101 has been credited with INR 12 on 30-Sep-26. Info: XX101:Int.Pd:01-07-2026 to 30-09-2026. NEVER SHARE your Card number, CVV, PIN, OTP, Internet Banking User ID, Password or URN with anyone.'
+expect:
+  amount_paise: 1200
+  direction: credit
+  account_last4: '101'
+  counterparty: XX101:Int.Pd:01-07-2026 to 30-09-2026
+  date: '2026-09-30'
+  status: parsed

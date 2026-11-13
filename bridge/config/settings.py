@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "core",
     "firefly",
     "ingest",
+    "mail",
 ]
 
 MIDDLEWARE = [
@@ -84,6 +85,7 @@ FIREFLY_TIMEOUT_SECONDS = 15
 # Shared with the SMS forwarder; it signs each request body (X-Signature, HMAC-SHA-256).
 BRIDGE_SMS_HMAC_SECRET = env("BRIDGE_SMS_HMAC_SECRET", "")
 INGEST_PROFILE_DIRS = [BASE_DIR / "ingest" / "profiles"]
+INGEST_EMAIL_PROFILE_DIRS = [BASE_DIR / "ingest" / "profiles" / "email"]
 # The owner's own UPI IDs. Money to or from one of them moves between own accounts,
 # so it is never counted as spend or income on its own.
 # For banks whose SMS never name the account: "profile=last4,profile=last4" (e.g. "federal=1234").
@@ -97,12 +99,24 @@ INGEST_TRANSFER_WINDOW_MINUTES = 180
 INGEST_REFERENCE_WINDOW_DAYS = 7
 BALANCE_CONFIRMED_HOURS = 72  # a bank-reported balance older than this is "stale"
 
+# --- Mail and statements (M3) ---
+# Key for secrets stored in the database (Gmail tokens, statement passwords). Lives only in .env.
+BRIDGE_ENCRYPTION_KEY = env("BRIDGE_ENCRYPTION_KEY", "")
+# Nothing before this date is posted to the ledger (opening balances cover it).
+INGEST_LEDGER_START = env("INGEST_LEDGER_START", "2026-11-01")
+GMAIL_POLL_MINUTES = int(env("GMAIL_POLL_MINUTES", "10"))
+GMAIL_REQUEST_PAUSE_SECONDS = float(env("GMAIL_REQUEST_PAUSE_SECONDS", "0.25"))
+STATEMENT_DIR = Path(env("STATEMENT_DIR", "/data/statements"))
+
 CELERY_BROKER_URL = REDIS_URL or "memory://"
 CELERY_RESULT_BACKEND = REDIS_URL or "cache+memory://"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_BEAT_SCHEDULE = {"ingest-sweep": {"task": "ingest.tasks.sweep", "schedule": 60.0}}
+CELERY_BEAT_SCHEDULE = {
+    "ingest-sweep": {"task": "ingest.tasks.sweep", "schedule": 60.0},
+    "gmail-poll": {"task": "mail.tasks.poll_all", "schedule": GMAIL_POLL_MINUTES * 60.0},
+}
 
 # Log metadata only. Message bodies, account numbers and tokens are never logged.
 LOGGING = {

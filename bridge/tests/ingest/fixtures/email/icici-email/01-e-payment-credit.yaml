@@ -1,0 +1,13 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: ICICI Bank <epay@icicibank.com>
+text: 'ICICI Bank E-Payment for M/s NAME SURNAME
+
+  Dear Sir / Madam, We have credited your account XXXXXXXX1002 with Rs 26667.00 (Rupees Twenty Six Thousand Six Hundred and Sixty Seven and Zero paise only) through payment reference number 1000000001 on behalf of EMPLOYER LLP. Regards, ICICI Bank Limited'
+expect:
+  amount_paise: 2666700
+  direction: credit
+  account_last4: '1002'
+  reference: '1000000001'
+  counterparty: EMPLOYER LLP
+  status: parsed

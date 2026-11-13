@@ -40,3 +40,36 @@ def test_transaction_alerts_with_warnings_are_kept(text):
 
 def test_whitespace_and_case_do_not_hide_a_secret():
     assert contains_secret("YOUR\n   ONE TIME\tPASSWORD   is 482913")
+
+
+# --- email ------------------------------------------------------------------------
+from ingest.otp import contains_secret_email
+
+EMAIL_SECRETS = [
+    ("One Time Password (OTP) for your online transaction at SHOP", "Dear Cardholder, 482913 is the OTP for your transaction."),
+    ("SBI Card One Time Password", "Your one time password is 482913."),
+    ("Account update", "Your OTP is 482913. It is valid for 5 minutes. Do not share it with anyone."),
+    ("Your request", "482913 is your verification code for the request."),
+    ("Your request", "Please do not share OTP 482913 with anyone."),
+]
+EMAIL_KEPT = [
+    ("Transaction Alert from SBI Card", "Rs.450.00 spent on your SBI Credit Card ending 1006 at SHOP on 01/11/26. "
+     "Safe Banking Tip: Never share your Card Number, CVV, PIN, OTP, Internet Banking User ID or Password with anyone. "
+     "Call 1860 180 1290 or 39 02 02 02."),
+    ("Your Axis Bank Credit Card Statement", "Option 1: Enter the first four letters of your name in UPPER CASE and your date "
+     "of birth in DDMM format. For example: Name C.K. Ajay Kumar + Date of Birth 01.01.1990 Password CKAJ0101."),
+    ("Federal Bank - Savings Account Statement", "For example, if your name is Om R Dev & you were born on Jan 25, your passcode is OMRD2501."),
+    ("Statements for Accounts", "This statement is secured by a unique password. Your password is your date of birth (DDMMYY) "
+     "followed by the 4th to the 9th digit of your Customer ID."),
+    ("Account update", "HSBC will never contact you by email to ask you to validate your user ID or password 1234."),
+]
+
+
+@pytest.mark.parametrize("subject,body", EMAIL_SECRETS)
+def test_email_secrets_are_dropped(subject, body):
+    assert contains_secret_email(subject, body)
+
+
+@pytest.mark.parametrize("subject,body", EMAIL_KEPT)
+def test_email_alerts_and_password_instructions_are_kept(subject, body):
+    assert not contains_secret_email(subject, body)

@@ -19,7 +19,7 @@ IST = ZoneInfo("Asia/Kolkata")
 _DLT = re.compile(r"^[A-Z]{2}-([A-Z0-9]{6})(?:-[A-Z])?$")
 DIRECTIONS = {"debit", "credit"}
 KINDS = {"payment", "refund", "reversal", "own_transfer", "card_payment"}
-TYPES = {"transaction", "ignore", "balance"}
+TYPES = {"transaction", "ignore", "balance", "review"}
 
 
 class ProfileError(ValueError):
@@ -79,6 +79,12 @@ def header_of(sender):
     return match.group(1) if match else sender
 
 
+def header_of_email(from_header):
+    """'HDFC Bank <alerts@hdfcbank.bank.in>' -> 'HDFCBANK.BANK.IN' (the sender's domain)."""
+    match = re.search(r"@([\w.-]+)", from_header or "")
+    return match.group(1).strip(".").upper() if match else (from_header or "").strip().upper()
+
+
 def _load_profile(path):
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     where = path.name
@@ -120,8 +126,8 @@ def _load_profile(path):
                 raise ProfileError(f"{pref}: kind must be one of {sorted(KINDS)}")
         if ptype == "balance" and not {"account", "balance"} <= groups:
             raise ProfileError(f"{pref}: balance patterns need groups account and balance")
-        if ptype == "ignore" and not raw.get("reason"):
-            raise ProfileError(f"{pref}: ignore patterns need a reason")
+        if ptype in ("ignore", "review") and not raw.get("reason"):
+            raise ProfileError(f"{pref}: {ptype} patterns need a reason")
         patterns.append(
             Pattern(
                 ref=pref,
@@ -158,8 +164,9 @@ def _profiles_for(dirs):
     return by_header
 
 
-def profiles():
-    return _profiles_for(tuple(str(d) for d in settings.INGEST_PROFILE_DIRS))
+def profiles(source="sms"):
+    dirs = settings.INGEST_EMAIL_PROFILE_DIRS if source == "email" else settings.INGEST_PROFILE_DIRS
+    return _profiles_for(tuple(str(d) for d in dirs))
 
 
 def clear_cache():
@@ -215,8 +222,8 @@ def _occurred_at(groups, profile, sent_at):
     return dt.datetime.combine(day, dt.time(12, 0), tzinfo=IST)
 
 
-def parse(header, body, sent_at):
-    profile = profiles().get(header)
+def parse(header, body, sent_at, source="sms"):
+    profile = profiles(source).get(header)
     if profile is None:
         return ParseResult("unknown_sender", reason=f"no profile for sender {header}")
     text = " ".join(body.split())
@@ -226,6 +233,9 @@ def parse(header, body, sent_at):
             continue
         if pattern.type == "ignore":
             return ParseResult("ignored", reason=pattern.reason, pattern_ref=pattern.ref)
+        if pattern.type == "review":
+            # Known message that a person must handle, e.g. a spend in a foreign currency.
+            return ParseResult("review", reason=pattern.reason, pattern_ref=pattern.ref)
         g = {k: v for k, v in match.groupdict().items() if v is not None}
         try:
             parsed = Parsed(

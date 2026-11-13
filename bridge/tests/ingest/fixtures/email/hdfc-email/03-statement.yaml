@@ -1,0 +1,9 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: HDFC Bank InstaAlerts <alerts@hdfcbank.bank.in>
+text: 'Email Account Statement of your HDFC Bank Account ***1001 for the period 01-Oct-2026 TO 31-Oct-2026
+
+  Dear Customer, here''s your HDFC Bank account SmartStatement.'
+expect:
+  status: ignored
+  reason: statement email (its PDF is handled by the statement import)

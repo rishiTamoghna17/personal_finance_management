@@ -1,0 +1,9 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: ICICI Bank <epay@icicibank.com>
+text: 'ICICI Bank E-payment for M/s NAME SURNAME
+
+  Dear Sir / Madam, We have initiated a payment of Rs 15000.00 (Rupees Fifteen Thousand and Zero paise only) in your account XXXXXXX1002 through payment reference number 1000000003 on behalf of EMPLOYER LLP. The payment is subject to realisation.'
+expect:
+  status: ignored
+  reason: salary or vendor payment initiated, not yet credited (the credit email follows)

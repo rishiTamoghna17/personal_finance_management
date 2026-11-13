@@ -1,0 +1,16 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: Axis Bank Alerts <alerts@axis.bank.in>
+text: 'INR 274.77 spent on credit card no. XX1003
+
+  01-11-2026 Dear NAME SURNAME, Here''s the summary of your Axis Bank Credit Card Transaction: Transaction Amount: INR 274.77 Merchant Name: ZOMATO CYBS Axis Bank Credit Card No. XX1003 Date & Time: 01-11-2026, 20:24:43 IST Available Limit*: INR 36045.59 Total Credit Limit*: INR 50000'
+expect:
+  amount_paise: 27477
+  direction: debit
+  channel: card
+  account_last4: '1003'
+  counterparty: ZOMATO CYBS
+  balance_paise: null
+  date: '2026-11-01'
+  time: '20:24:43'
+  status: parsed

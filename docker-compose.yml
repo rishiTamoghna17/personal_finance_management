@@ -21,8 +21,13 @@ x-bridge: &bridge
     BRIDGE_SMS_HMAC_SECRET: ${BRIDGE_SMS_HMAC_SECRET:?set in .env}
     BRIDGE_OWN_VPAS: ${BRIDGE_OWN_VPAS:-}
     BRIDGE_DEFAULT_ACCOUNTS: ${BRIDGE_DEFAULT_ACCOUNTS:-}
+    BRIDGE_ENCRYPTION_KEY: ${BRIDGE_ENCRYPTION_KEY:?set in .env}
+    INGEST_LEDGER_START: ${INGEST_LEDGER_START:-2026-11-01}
+    STATEMENT_DIR: /data/statements
     TZ: Asia/Kolkata
   networks: [internal]
+  volumes:
+    - bridge_data:/data
   depends_on:
     postgres:
       condition: service_healthy
@@ -127,6 +132,7 @@ services:
 volumes:
   postgres_data:
   firefly_upload:
+  bridge_data:
 
 networks:
   internal:

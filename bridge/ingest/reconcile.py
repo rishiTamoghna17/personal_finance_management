@@ -18,6 +18,11 @@ from . import accounts, parser
 from .models import BalanceObservation, LedgerEntry, ParsedTransaction, RawMessage, ReviewItem
 
 PT = ParsedTransaction
+_MONEY_WORDS = __import__("re").compile(
+    r"(?i)(rs\.?|inr|₹)\s?[\d,]+(\.\d+)?\s+(has been|have been|is|was)\s+(successfully\s+)?"
+    r"(debited|credited|spent|withdrawn|paid|received|refunded|reversed)"
+    r"|\b(debited|credited)\s+(with|by|for)\s+(rs\.?|inr|₹)|\bspent (inr|rs\.?|₹)"
+)
 FLAGGED = (PT.Kind.OWN_TRANSFER, PT.Kind.CARD_PAYMENT)
 
 
@@ -228,13 +233,21 @@ def process(raw_id):
         raw = RawMessage.objects.select_for_update().get(pk=raw_id)
         if raw.status != RawMessage.Status.RECEIVED:
             return raw.status
-        result = parser.parse(raw.header, raw.body, raw.sent_at)
+        result = parser.parse(raw.header, raw.body, raw.sent_at, raw.source)
         raw.pattern_ref = result.pattern_ref
 
         if result.status == "unknown_sender":
             _review(raw, ReviewItem.Reason.UNKNOWN_SENDER, result.reason)
             return raw.status
         if result.status == "unparsed":
+            if raw.source == RawMessage.Source.EMAIL and not _MONEY_WORDS.search(raw.body):
+                # Banks send many newsletters and offers; only mail that talks about money moving goes to review.
+                raw.status, raw.status_reason = RawMessage.Status.IGNORED, "bank email without a transaction (notice or offer)"
+                raw.save(update_fields=["status", "status_reason", "pattern_ref"])
+                return raw.status
+            _review(raw, ReviewItem.Reason.UNPARSED, result.reason)
+            return raw.status
+        if result.status == "review":
             _review(raw, ReviewItem.Reason.UNPARSED, result.reason)
             return raw.status
         if result.status == "ignored":

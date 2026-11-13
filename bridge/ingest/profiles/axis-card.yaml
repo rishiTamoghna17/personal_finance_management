@@ -58,3 +58,7 @@ patterns:
     type: ignore
     reason: card application notice
     match: '(video KYC|resume KYC) for (your )?Axis Bank Credit Card application'
+  - id: upi-mandate-setup
+    type: ignore
+    reason: UPI mandate set up (not a payment)
+    match: 'UPI mandate set up for .+ for INR [\d,.]+'

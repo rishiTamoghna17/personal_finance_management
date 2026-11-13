@@ -20,8 +20,8 @@ class RawMessage(models.Model):
         REVIEW = "review"  # needs the owner; see ReviewItem
 
     source = models.CharField(max_length=8, choices=Source.choices)
-    sender = models.CharField(max_length=64)
-    header = models.CharField(max_length=32, db_index=True)
+    sender = models.CharField(max_length=255)
+    header = models.CharField(max_length=128, db_index=True)
     body = models.TextField()
     sent_at = models.DateTimeField()
     received_at = models.DateTimeField(null=True, blank=True)

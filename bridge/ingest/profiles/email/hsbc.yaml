@@ -1,0 +1,9 @@
+# HSBC statement emails. Written from the owner's real emails (2026-11-13). HSBC sends no transaction alert emails.
+id: hsbc-email
+account_kind: bank
+senders: [notification.hsbc.bank.in, notification.hsbc.co.in]
+patterns:
+  - id: statement
+    type: ignore
+    reason: statement email (its PDF is handled by the statement import)
+    match: 'Statements for Accounts under Customer ID'

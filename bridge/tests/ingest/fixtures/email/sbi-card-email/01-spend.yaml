@@ -1,0 +1,14 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: SBI Card <onlinesbicard@sbicard.com>
+text: 'Transaction Alert from SBI Card
+
+  Untitled Document Dear Cardholder, This is to inform you that, Rs.450.00 spent on your SBI Credit Card ending 1006 at ZOMATO on 01/11/26. Trxn. not done by you? Report at https://sbicard.com/Dispute . Safe Banking Tip: Never share your Card Number, CVV, PIN, OTP, Internet Banking User ID or Password with anyone.'
+expect:
+  amount_paise: 45000
+  direction: debit
+  channel: card
+  account_last4: '1006'
+  counterparty: ZOMATO
+  date: '2026-11-01'
+  status: parsed

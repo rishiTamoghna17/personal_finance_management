@@ -1,0 +1,9 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: Axis Bank Alerts <alerts@axis.bank.in>
+text: 'Transaction on Axis Bank Credit Card Declined
+
+  01-11-2026 Dear Customer, your transaction attempt for INR 1500 on your Axis Bank Credit Card no. XX1003 has been declined as Domestic Contactless usage is not enabled on your card.'
+expect:
+  status: ignored
+  reason: declined transaction

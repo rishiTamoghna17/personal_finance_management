@@ -1,0 +1,9 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: ICICI Bank <estatement@icicibank.com>
+text: 'ICICI Bank Statement from 01-10-2026 to 31-10-2026 for XXXXXXXX1002
+
+  Dear Customer, please find attached your statement.'
+expect:
+  status: ignored
+  reason: statement email (its PDF is handled by the statement import)

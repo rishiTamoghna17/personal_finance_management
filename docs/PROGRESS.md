@@ -3,16 +3,16 @@
 Update this file at the start and end of every milestone. It is how a new session knows where things stand.
 
 ## Now
-- Approved milestone: M2 (approved 2026-11-12)
-- Status: M2 pipeline built and tested; bank profiles not written yet (waiting for samples, rule 9). Not committed.
-- Next step: owner sends masked SMS samples (ICICI bank and Axis card first) and installs the forwarder on the phone. Then: write one profile per bank and card, with the samples as fixtures.
+- Approved milestone: M3 (approved 2026-11-13)
+- Status: M3 in progress. Part A (Gmail alert emails) is live. Part B (statement PDFs) next: needs the owner to enter statement passwords in a hidden prompt.
+- Next step: owner answers the M3 questions; owner also fills opening balances in `accounts.yaml` and re-runs `seed_firefly` (not blocking M3).
 
 ## Milestones
 | ID | Scope | Status | Approved on | Finished on |
 | --- | --- | --- | --- | --- |
 | M1 | Docker stack, Firefly, bridge skeleton, accounts | Finished | 2026-11-12 | 2026-11-12 |
-| M2 | SMS ingestion, OTP filter, profiles, reconciliation | In progress | 2026-11-12 | |
-| M3 | Gmail alerts, statement PDFs | Not started | | |
+| M2 | SMS ingestion, OTP filter, profiles, reconciliation | Finished | 2026-11-12 | 2026-11-13 |
+| M3 | Gmail alerts, statement PDFs | In progress | 2026-11-13 | |
 | M4 | AI categoriser, LLM fallback | Not started | | |
 | M5 | Goals, EMI, net worth, CAS, credit report | Not started | | |
 | M6 | Telegram advisor | Not started | | |
@@ -149,7 +149,7 @@ docs/sms-forwarder.md                        # phone setup
 - Real accounts seeded into Firefly (needed to map last4 to accounts).
 - How the phone reaches the bridge, which listens only on 127.0.0.1 today.
 
-## M2 result so far (2026-11-12)
+## M2 result (finished 2026-11-13)
 
 ### Done and checked
 - `POST /api/v1/ingest/sms` (bearer token + HMAC `X-Signature`), review queue API, `bank_balance` and confirmed/stale/calculated on `/api/v1/accounts`.
@@ -191,6 +191,103 @@ Every pattern has a masked fixture (`bridge/tests/ingest/fixtures/`); a test enf
 - Two same-amount payments on different own accounts with different references are not treated as a transfer. Pairing without a shared reference happens only when a profile marks the message as a card payment or own transfer.
 - A transfer half that arrives after the other half was already posted goes to review as `transfer_already_posted`; Firefly is not edited automatically.
 - Raw message bodies are stored unencrypted in the bridge database (OTP messages never are). Revisit in M7 with disk encryption and backups.
+
+### Closing check (2026-11-13, by hand: /drift-review is not installed)
+- Rule 2: endpoints are health, accounts, ingest/sms, review; none moves money.
+- Rule 3: OTP filter runs before storage; logs carry ids and sender headers only; Celery tasks take row ids only.
+- Rule 4: no float in money code; amounts go to Firefly as decimal strings.
+- Rule 10: no code from pckt or indian-bank-sms-parser.
+- Secrets: `.env`, `accounts.yaml`, the SMS backup and the phone rule file are not in git.
+- Left for the owner, not code: opening balances in `accounts.yaml`.
+
+## M3 plan (presented and approved 2026-11-13)
+
+### Goal
+Bank alert emails and monthly statement PDFs feed the same pipeline as SMS, so one real payment is still one transaction (rule 6), and statements confirm balances and catch anything SMS missed.
+
+### A. Gmail alert emails
+- A Celery beat task every 10 minutes reads new mail from bank senders only (a Gmail search on sender addresses), newest first, read-only.
+- Each email: subject and text body (HTML turned into text with the standard library), OTP filter in memory first, then stored as a raw message with source `email`, then parsed and reconciled exactly like SMS. An email and an SMS for the same payment merge by reference, or by account, amount and time.
+- Email profiles: YAML per bank in `bridge/ingest/profiles/email/`, keyed by sender address. Written only from real emails (rule 9): the first poll sends everything to review as unknown sender, and profiles are written from those, with masked fixtures, the same way as the SMS backup.
+- `POST /api/v1/ingest/email` (SPEC) with token and HMAC, same pipeline, for later use.
+
+### B. Statement PDFs
+- Statement emails are recognised per bank (sender plus subject). The PDF attachment is saved as received (it is already password-protected), unlocked into a temporary file, read, and the unlocked copy is deleted in a `finally` block.
+- Statement passwords: entered once per bank with a management command that prompts for it (never typed in chat or on the command line), encrypted with a key kept only in `.env` (`STATEMENT_KEY`, Fernet), stored encrypted in the bridge database, decrypted only in memory inside the task, never in Celery arguments or logs.
+- One Python parser per bank statement layout, written from the owner's real statements, with masked fixtures.
+- Each statement line goes through the same reconciliation: already recorded → linked to its statement line; not recorded → new transaction (source `pdf`); same reference but different amount → review.
+- The closing balance becomes a confirmed bank balance. If it differs from Firefly's balance for that date, a review item shows the difference.
+
+### C. Tests
+- Cross-source dedup: SMS + email + PDF for one payment = one transaction; PDF-only line = one new transaction.
+- OTP emails dropped; password never in logs, Celery arguments or the database in plain form; unlocked PDF deleted after success and after failure.
+- Every email profile and statement parser against masked fixtures.
+
+### New dependencies (checked 2026-11-13; all free)
+| Package | Version | Licence | Use |
+| --- | --- | --- | --- |
+| google-api-python-client | 2.202.0 | Apache-2.0 | Gmail API |
+| google-auth-oauthlib | 1.5.0 | Apache-2.0 | one-time Google sign-in |
+| pikepdf | 10.18.1 | MPL-2.0 | unlock password-protected PDFs |
+| pdfplumber | 0.11.10 | MIT | read text and tables from PDFs |
+| cryptography | current | Apache-2.0 / BSD | encrypt statement passwords and the Gmail token |
+
+### File layout
+```
+bridge/mail/            # Gmail client, poll task, email-to-text
+bridge/statements/      # password store, unlock, parsers/<bank>.py, reconciliation
+bridge/ingest/profiles/email/*.yaml
+bridge/tests/mail/, bridge/tests/statements/ (+ masked fixtures)
+docs/gmail-setup.md     # owner's one-time Google setup
+```
+
+### Left out of M3
+- CSV import and the Firefly data-importer: the data-importer writes straight into Firefly and would bypass the bridge's dedup, so the same payment could be counted twice (rule 6). Proposed: skip, or later add CSV as one more bridge source.
+- LLM fallback (M4).
+
+### Owner's answers (2026-11-13)
+- Gmail access: Gmail API, read-only. Bank mail arrives in **two** Gmail accounts; both will be connected.
+- Statement passwords: the owner knows them; the bank emails state each format. They are typed into the prompt, never sent in chat. Nothing is ever guessed or brute-forced.
+- Email formats and statement layouts: learned from a Google Takeout export (.mbox) of a "bank" label in each account, analysed locally like the SMS backup, never committed.
+- CSV / data-importer: left out of M3 (agreed).
+- Gmail API checked for account 1 (2026-11-13): OAuth client (Desktop app) in `secrets/gmail_client.json` (git-ignored); sign-in granted only `gmail.readonly` and a refresh token; a write attempt was refused (403). The test kept the token in memory only. The `bank` label held only ~64 messages, so it was probably applied to one page of results rather than to every match.
+- Still needed: account 2's Google setup (same steps), the two exports, and the owner's "approved" for M3.
+
+### What the two mailboxes contain (analysed 2026-11-13, read-only API, digits masked; cache kept only in the private scratch folder)
+Account 1: 2,483 bank/investment emails (3 years). Account 2: 340.
+
+| Source | Transaction alert emails | Statement PDFs | Password rule stated in the email |
+| --- | --- | --- | --- |
+| HDFC (hdfcbank.bank.in) | Yes, ~114 UPI debit alerts ("Rs.x is debited from your account ending … towards VPA … UPI transaction reference no.") | "Email Account Statement" (no PDF attachment seen) | none seen |
+| ICICI (icicibank.com, icici.bank.in) | Yes: transaction alerts, salary/NEFT credits ("payment of Rs … on behalf of <employer>") | Monthly PDF | first letters of the account title + DDMM of birth, lowercase |
+| HSBC (notification.hsbc.*) | No | Monthly PDF per customer ID | DOB (DDMMYY) + some digits of the Customer ID |
+| Axis cards (axis.bank.in, account 2) | Yes, every card purchase | Monthly PDF per card; EMI letter PDF | first 4 letters of name (CAPS) + DOB DDMM, or + last 4 card digits |
+| SBI Card (sbicard.com) | Yes, "Transaction Alert from SBI Card" (~222) | Monthly PDF (SimplyCLICK) | says a new rule is "below", but it is not in the email text (probably an image): owner to confirm |
+| Fi / Federal (fi.money) | Yes (credits) | Monthly PDF | first 4 letters of name (CAPS) + DDMM; Federal is no longer used |
+| Mutual funds (CAMS, KFintech) | SIP / redemption confirmations | CAS-style PDFs | PAN in capitals |
+| NSDL / CDSL | e-voting notices only | AGM / ballot notices (not statements) | n/a |
+| Experian / CIBIL | credit-enquiry alerts | Experian credit report PDF | not checked yet |
+
+Investments (found 2026-11-13, account 1, for M5):
+- **CDSL CAS** monthly from `cdslstatement.com` ("Consolidated Account Statement across Mutual Funds and Depositories"), every month since 2024: one PDF with all demat stocks and mutual funds, whichever app was used. Password: PAN in capitals (stated in the email). This is the main source for M5 holdings.
+- **Groww** (747 emails, 2026): SIP and lump-sum allotments, redemptions, monthly "Transaction and Holding Statement" PDF and "Statement of account of securities" PDF; both open with PAN in capitals.
+- Folio statements and SIP confirmations from CAMS and KFintech (PAN in capitals); NSDL sends AGM/e-voting notices only.
+
+Important for the build: the SMS secret filter, applied to emails, flags far too much (733 of 2,483 in account 1), including all ~222 SBI Card transaction alerts and several ICICI transaction alerts and statements, because email footers warn about OTP/PIN next to numbers. M3 needs an email-specific filter (ignore standard disclaimer footers, look for the code itself) tested against these emails before email goes live.
+
+### M3 part A result (2026-11-13): bank alert emails, live
+- Both Gmail accounts connected read-only (`gmail_connect`); tokens stored encrypted with `BRIDGE_ENCRYPTION_KEY` (only in `.env`). Beat polls every 10 minutes, only exact bank alert domains from the email profiles; marketing sub-domains are skipped.
+- Email-specific secret filter (`contains_secret_email`): on all 2,823 cached emails it flagged every real OTP email (171) and no transaction alert or statement email.
+- Email profiles (`bridge/ingest/profiles/email/`): HDFC UPI debit/credit, ICICI e-payment (salary) credit, interest credit, debit-card purchase, SBI Card spend and e-mandate debit, Axis card spend; statements, notices, initiated payments and upcoming mandates ignored with reasons; Axis foreign-currency spends go to review (new `type: review`). On the cache: 393 emails become transactions, none fall to review by accident.
+- `POST /api/v1/ingest/email` (token + HMAC). Statement PDFs attached to bank emails are recorded as `StatementAttachment` (pending) for part B.
+- First live poll (mail since 2026-11-01): 40 emails, 11 transactions; Firefly now holds 12 transactions (11 from email, 1 from SMS), all withdrawals, ₹2,832.69. One Axis USD spend is in review.
+- 320 tests pass. Not committed yet.
+
+### Questions for the owner (as asked)
+1. Gmail access: Gmail API with read-only permission (recommended: it can only read; needs a free Google Cloud project and a one-time sign-in), or IMAP with an app password (simpler, but that password unlocks the whole mailbox and could also send mail)?
+2. Which banks and cards email you monthly statements, and do you know each statement's password format? (Do not send passwords in chat; the command will ask for them.)
+3. Do any of your banks send transaction alert emails, or only SMS?
+4. OK to leave CSV / data-importer out of M3?
 
 ## Open questions for the owner
 - How many accounts at each bank (HDFC, SBI, ICICI, HSBC, AXIS), and savings, salary or current?

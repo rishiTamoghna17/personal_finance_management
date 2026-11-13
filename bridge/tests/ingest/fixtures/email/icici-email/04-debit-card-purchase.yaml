@@ -1,0 +1,15 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: ICICI Bank <customercare@icici.bank.in>
+text: 'Transaction alert for your ICICI Bank debit card
+
+  Dear Customer, Greetings from ICICI Bank. A purchase of Rs. 450.00 has been made using your Debit Card linked to ICICI Bank Account XX101 on 01-Jun-26. Info: VIN*MERCHANT . The Available Balance in your account is Rs. 1,234.56. In case you have not done this transaction, please call on 18002662 or SMS BLOCK 101 to 9215676766 from your registered mobile number. NEVER SHARE your Card number, CVV, PIN, OTP with anyone.'
+expect:
+  amount_paise: 45000
+  direction: debit
+  channel: card
+  account_last4: '101'
+  counterparty: VIN*MERCHANT
+  balance_paise: 123456
+  date: '2026-06-01'
+  status: parsed

@@ -1,0 +1,9 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: SBI Card <onlinesbicard@sbicard.com>
+text: 'E-mandate reminder
+
+  Dear Cardholder, Your payment of INR 69.00 at Amazon Seller Services PL is due on 06/11/2026 and will be processed through SBI Credit Card ending with 1006 as per e-Mandate (SiHub ID: XXXXXXXXXX) registered by you.'
+expect:
+  status: ignored
+  reason: upcoming e-mandate charge (not charged yet)

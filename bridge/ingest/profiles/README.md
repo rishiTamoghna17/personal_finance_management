@@ -15,7 +15,7 @@ patterns:                    # tried in order; first match wins
     reason: failed payment
     match: '...'
   - id: upi-debit
-    type: transaction        # transaction | balance | ignore
+    type: transaction        # transaction | balance | ignore | review
     direction: debit         # debit | credit
     channel: upi             # upi | imps | neft | rtgs | nach | card | atm | other
     kind: payment            # payment | refund | reversal | own_transfer | card_payment
@@ -38,3 +38,7 @@ Named groups the parser understands:
 A transaction pattern may set `account: default` when the bank's SMS never names the account; the last digits then come from `BRIDGE_DEFAULT_ACCOUNTS` in `.env` (`profile=last4`). Dates without a year (`15AUG`) take the latest such date not after the SMS.
 
 Matching ignores case and treats any run of whitespace as one space.
+
+`type: review` (with a `reason`) sends a known message straight to the review queue, for example a card spend in a foreign currency whose INR amount only appears on the statement.
+
+Email profiles live in `email/`, keyed by the sender's domain (`senders: [hdfcbank.bank.in]`); the text parsed is the subject followed by the body.

@@ -1,0 +1,9 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: ICICI Bank <customercare@icici.bank.in>
+text: 'Transaction confirmation in your ICICI Bank Savings Account XX101
+
+  Dear Customer, We are unable to reach you to confirm the transaction related to Unified Payment Interface, UPI Payment of INR 1000.00 carried out through ICICI Bank Savings Account XX101.'
+expect:
+  status: ignored
+  reason: unconfirmed UPI payment notice (the SMS copy goes to review)

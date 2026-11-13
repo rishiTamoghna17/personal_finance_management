@@ -9,7 +9,7 @@ COPY requirements.txt requirements-dev.txt ./
 RUN pip install -r requirements-dev.txt
 
 COPY . .
-RUN useradd --system --uid 10001 bridge
+RUN useradd --system --uid 10001 bridge && mkdir -p /data/statements && chown -R bridge /data && chmod 700 /data/statements
 USER bridge
 
 EXPOSE 8000

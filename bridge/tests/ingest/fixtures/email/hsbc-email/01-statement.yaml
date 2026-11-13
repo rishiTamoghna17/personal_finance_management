@@ -1,0 +1,9 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: HSBC <statements@notification.hsbc.bank.in>
+text: 'Statements for Accounts under Customer ID 000-XXXXXX
+
+  Password protection This statement is secured by a unique password assigned to you for your personal access only.'
+expect:
+  status: ignored
+  reason: statement email (its PDF is handled by the statement import)

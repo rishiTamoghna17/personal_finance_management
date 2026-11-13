@@ -1,0 +1,25 @@
+# Axis Bank credit card emails. Written from the owner's real emails (2026-11-13). Add a pattern only from a real email.
+# "Available Limit" and "Total Credit Limit" are never captured (rule 8).
+id: axis-card-email
+account_kind: card
+senders: [axis.bank.in]
+date_formats: ["%d-%m-%Y"]
+patterns:
+  - id: statement
+    type: ignore
+    reason: statement or EMI letter email (its PDF is handled by the statement import)
+    match: 'Credit Card Statement ending|EMI Letter with Monthly EMI Details'
+  - id: declined
+    type: ignore
+    reason: declined transaction
+    match: 'Transaction on Axis Bank Credit Card Declined|has been declined'
+  # A spend in a foreign currency: its INR amount is only known from the statement, so a person decides.
+  - id: foreign-currency-spend
+    type: review
+    reason: card spend in a foreign currency (INR amount appears on the statement)
+    match: 'Transaction Amount: (?!INR)[A-Z]{3} [\d,.]+ Merchant Name:'
+  # "Transaction Amount: INR 123.45 Merchant Name: ZOMATO CYBS Axis Bank Credit Card No. XX1234 Date & Time: 01-11-2026, 10:11:12 IST"
+  - id: spend
+    direction: debit
+    channel: card
+    match: 'Transaction Amount: INR (?P<amount>[\d,]+(?:\.\d+)?) Merchant Name: (?P<counterparty>.+?) Axis Bank Credit Card No\. X+(?P<account>\d{4}) Date & Time: (?P<date>\d{2}-\d{2}-\d{4}), (?P<time>\d{2}:\d{2}:\d{2})'

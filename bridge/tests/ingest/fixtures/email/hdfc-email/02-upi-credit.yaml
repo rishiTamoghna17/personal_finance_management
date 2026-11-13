@@ -1,0 +1,15 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: HDFC Bank InstaAlerts <alerts@hdfcbank.bank.in>
+text: 'View: Account update for your HDFC Bank A/c
+
+  HDFC BANK --> Dear Customer, Greetings from HDFC Bank! We''re writing to inform you that Rs.1234.00 has been successfully credited to your HDFC Bank account ending in 1001. Transaction Details: a. Date: 02-11-26 b. Sender: NAME SURNAME (VPA: abcd-2@okaxis) c. UPI Reference No.: 100000000202 Need Help?'
+expect:
+  amount_paise: 123400
+  direction: credit
+  account_last4: '1001'
+  vpa: abcd-2@okaxis
+  counterparty: NAME SURNAME
+  reference: '100000000202'
+  date: '2026-11-02'
+  status: parsed

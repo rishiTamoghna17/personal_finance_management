@@ -1,0 +1,9 @@
+# From the owner's real emails (2026-11-13), masked: digits, names, addresses and IDs replaced; wording kept, footer shortened.
+source: email
+sender: SBI Card <onlinesbicard@sbicard.com>
+text: 'Your SimplyCLICK SBI Card Monthly Statement -Oct 2026
+
+  Dear Cardholder, please note that your statement is password protected for security reasons.'
+expect:
+  status: ignored
+  reason: statement email (its PDF is handled by the statement import)

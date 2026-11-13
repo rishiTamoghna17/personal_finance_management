@@ -1,0 +1,22 @@
+# HDFC Bank alert emails. Written from the owner's real emails (2026-11-13). Add a pattern only from a real email.
+# The text parsed is "<subject> <body>" with whitespace collapsed.
+id: hdfc-email
+account_kind: bank
+senders: [hdfcbank.bank.in, hdfcbank.net]
+date_formats: ["%d-%m-%y"]
+patterns:
+  - id: statement
+    type: ignore
+    reason: statement email (its PDF is handled by the statement import)
+    match: 'Email Account Statement of your HDFC Bank Account'
+  # "Rs.45.00 is debited from your account ending 1234 towards VPA x@ybl (NAME) on 01-11-26. UPI transaction reference no.: 123456789012."
+  - id: upi-debit
+    direction: debit
+    channel: upi
+    match: 'Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) is debited from your account ending (?P<account>\d{4}) towards VPA (?P<vpa>\S+) \((?P<counterparty>[^)]*)\) on (?P<date>\d{2}-\d{2}-\d{2})\. UPI transaction reference no\.?: ?(?P<ref>\d+)'
+  # "Rs.1234.00 has been successfully credited to your HDFC Bank account ending in 1234. Transaction Details: a. Date: 01-11-26
+  #  b. Sender: NAME (VPA: x@okaxis) c. UPI Reference No.: 123456789012"
+  - id: upi-credit
+    direction: credit
+    channel: upi
+    match: 'Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) has been successfully credited to your HDFC Bank account ending in (?P<account>\d{4})\. Transaction Details: a\. Date: (?P<date>\d{2}-\d{2}-\d{2}) b\. Sender: (?P<counterparty>.+?) \(VPA: (?P<vpa>[^)]+)\) c\. UPI Reference No\.?: ?(?P<ref>\d+)'

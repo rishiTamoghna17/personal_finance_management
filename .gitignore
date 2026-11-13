@@ -17,3 +17,10 @@ __pycache__/
 .DS_Store
 .idea/
 .vscode/
+
+# Google OAuth client and tokens, mail exports
+secrets/
+*.mbox
+
+# Google OAuth client files downloaded straight into the project
+client_secret_*.json

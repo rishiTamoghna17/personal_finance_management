@@ -1,0 +1,6 @@
+# Owner's real SMS (live, 2026-11-13), masked: amount and phone number replaced.
+sender: JD-AXISBK-S
+text: "UPI mandate set up for Google Cloud for INR 15000.00. Not you? Call us on 18004195577 - Axis Bank"
+expect:
+  status: ignored
+  reason: UPI mandate set up (not a payment)

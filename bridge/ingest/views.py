@@ -12,9 +12,9 @@ from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import otp, reconcile
+from . import otp, reconcile, services
 from .models import DropTally, LedgerEntry, ParsedTransaction, RawMessage, ReviewItem
-from .parser import IST, header_of
+from .parser import IST, header_of, header_of_email
 from .tasks import post_entry, process_raw
 
 log = logging.getLogger(__name__)
@@ -58,12 +58,6 @@ def _content_hash(source, sender, sent_at, body):
     return hashlib.sha256(key.encode()).hexdigest()
 
 
-def _tally_drop(header):
-    day = timezone.now().astimezone(IST).date()
-    tally, _ = DropTally.objects.get_or_create(header=header[:32], day=day)
-    DropTally.objects.filter(pk=tally.pk).update(count=F("count") + 1)
-
-
 class IngestSmsView(APIView):
     """POST /api/v1/ingest/sms - from the Android forwarder (and later the Phase 2 app)."""
 
@@ -78,20 +72,47 @@ class IngestSmsView(APIView):
 
         # Rule 3: the secret filter runs before anything is stored, logged or queued.
         if otp.contains_secret(data["text"]):
-            _tally_drop(header)
+            services.tally_drop(header)
             return Response({"status": "dropped"})
 
-        content_hash = _content_hash(RawMessage.Source.SMS, data["from"], data["sentStamp"], data["text"])
-        try:
-            with transaction.atomic():
-                raw = RawMessage.objects.create(
-                    source=RawMessage.Source.SMS, sender=data["from"], header=header, body=data["text"],
-                    sent_at=data["sentStamp"], received_at=data.get("receivedStamp"), content_hash=content_hash,
-                )
-        except IntegrityError:
-            existing = RawMessage.objects.get(content_hash=content_hash)
-            return Response({"status": "duplicate", "id": existing.pk})
-        transaction.on_commit(lambda: process_raw.delay(raw.pk))
+        digest = _content_hash(RawMessage.Source.SMS, data["from"], data["sentStamp"], data["text"])
+        raw, created = services.store(RawMessage.Source.SMS, data["from"], header, data["text"], data["sentStamp"],
+                                      digest, data.get("receivedStamp"))
+        if not created:
+            return Response({"status": "duplicate", "id": raw.pk})
+        log.info("stored raw message %s from %s", raw.pk, header)
+        return Response({"status": "accepted", "id": raw.pk}, status=202)
+
+
+class EmailSerializer(serializers.Serializer):
+    def get_fields(self):
+        return {
+            "from": serializers.CharField(max_length=255),
+            "subject": serializers.CharField(max_length=500, allow_blank=True, trim_whitespace=False),
+            "text": serializers.CharField(max_length=20000, trim_whitespace=False),
+            "sentStamp": EpochMillisField(),
+        }
+
+
+class IngestEmailView(APIView):
+    """POST /api/v1/ingest/email - one bank email (the Gmail poller uses the same path internally)."""
+
+    def post(self, request):
+        if not _signature_ok(request):
+            return Response({"detail": "bad or missing X-Signature"}, status=401)
+        serializer = EmailSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"detail": "invalid payload", "fields": sorted(serializer.errors)}, status=400)
+        data = serializer.validated_data
+        header = header_of_email(data["from"])
+        if otp.contains_secret_email(data["subject"], data["text"]):  # rule 3, before anything is stored
+            services.tally_drop(header)
+            return Response({"status": "dropped"})
+        body = f"{data['subject']}\n{data['text']}"
+        digest = _content_hash(RawMessage.Source.EMAIL, data["from"], data["sentStamp"], body)
+        raw, created = services.store(RawMessage.Source.EMAIL, data["from"], header, body, data["sentStamp"], digest)
+        if not created:
+            return Response({"status": "duplicate", "id": raw.pk})
         log.info("stored raw message %s from %s", raw.pk, header)
         return Response({"status": "accepted", "id": raw.pk}, status=202)
 
