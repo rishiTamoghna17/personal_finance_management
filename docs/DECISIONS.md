@@ -4,6 +4,13 @@ Add one entry whenever a design choice is made or the spec changes. Newest first
 
 Format: date · decision · why · who approved
 
+- 2026-11-13 · AI services (ollama, categoriser) run only on a Docker network with no internet route (`ai`, internal: true); the categoriser page is published through a local-only nginx forwarder on 127.0.0.1:3010 · after the categoriser sent requests to OpenAI despite OPENAI_BASE_URL (upstream bug), isolation must not depend on configuration · Claude, reported to owner
+
+- 2026-11-13 · Ollama runs as a Docker service (internal network only), not on the Mac; model qwen2.5:3b · owner asked not to install software on the PC; Docker's 7.7 GB memory and CPU-only inference suit a 3B model; the 7B needs more Docker memory · owner
+- 2026-11-13 · Categoriser settings page on 127.0.0.1:3010 (3000 is used by another program on this Mac) · local-only, no login · Claude
+
+- 2026-11-13 · M4 uses a local model through Ollama on this Mac, not Google Cloud's $300 trial · the trial credit does not cover the AI Studio Gemini key, Vertex coverage is uncertain and short-lived, the categoriser cannot use Vertex tokens, and local keeps payee names on the Mac · owner
+
 - 2026-11-13 · SBI NEO card added; SBI Card payment SMS without card digits go to review instead of defaulting to one card · two SBI cards make a default a guess · Claude, after the owner named the second card
 
 - 2026-11-13 · Federal Bank / Fi is not forwarded from the phone (profile kept for old messages) · owner no longer uses Federal Bank · owner

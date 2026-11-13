@@ -28,6 +28,8 @@ def _settings(settings):
     settings.INGEST_EMAIL_PROFILE_DIRS = [settings.BASE_DIR / "ingest" / "profiles" / "email"]
     settings.BRIDGE_ENCRYPTION_KEY = "jLbH5d5mF0eQ2m7O6l8kYJk9oQx3VtQGZ7m9c1fL3uU="
     settings.GMAIL_REQUEST_PAUSE_SECONDS = 0
+    settings.LLM_FALLBACK_ENABLED = False  # LLM tests switch it on with a mocked model
+    settings.LLM_PROVIDER = "ollama"
     settings.INGEST_OWN_VPAS = set()
     cache.clear()  # throttle counters and the account directory live in the cache
     parser.clear_cache()

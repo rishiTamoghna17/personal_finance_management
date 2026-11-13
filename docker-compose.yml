@@ -24,8 +24,12 @@ x-bridge: &bridge
     BRIDGE_ENCRYPTION_KEY: ${BRIDGE_ENCRYPTION_KEY:?set in .env}
     INGEST_LEDGER_START: ${INGEST_LEDGER_START:-2026-11-01}
     STATEMENT_DIR: /data/statements
+    LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+    LLM_MODEL: ${LLM_MODEL:-qwen2.5:3b}
+    LLM_OLLAMA_URL: ${LLM_OLLAMA_URL:-http://ollama:11434}
+    LLM_API_KEY: ${LLM_API_KEY:-}
     TZ: Asia/Kolkata
-  networks: [internal]
+  networks: [internal, ai]
   volumes:
     - bridge_data:/data
   depends_on:
@@ -86,11 +90,12 @@ services:
       DB_PASSWORD: ${FIREFLY_DB_PASSWORD:?set in .env}
       STATIC_CRON_TOKEN: ${FIREFLY_STATIC_CRON_TOKEN:?set in .env}
       TRUSTED_PROXIES: ""
+      ALLOW_WEBHOOKS: "true"  # used only by the internal AI categoriser webhook (M4)
     volumes:
       - firefly_upload:/var/www/html/storage/upload
     ports:
       - "127.0.0.1:8080:8080"
-    networks: [internal]
+    networks: [internal, ai]
     depends_on:
       postgres:
         condition: service_healthy
@@ -113,6 +118,47 @@ services:
     networks: [internal]
     depends_on: [firefly]
 
+  # M4: local AI model server. Internal network only (no published port); models kept in the ollama_models volume.
+  # Runs on the CPU (Docker on a Mac has no GPU), so a small model is used by default.
+  ollama:
+    image: ollama/ollama:0.40.16
+    restart: unless-stopped
+    volumes:
+      - ollama_models:/root/.ollama
+    # To download another model, attach it to `internal` for the download only (see README).
+    networks: [ai]
+
+  # M4: AI categoriser (FireflyIII-AI-Categorizer, AGPL-3.0), pinned by digest because only `latest` is published.
+  # It has no login, so its settings page is published on 127.0.0.1 only. It talks to the ollama container.
+  categorizer:
+    image: ghcr.io/ejagombar/fireflyiii-ai-categorizer@sha256:453e908c448fd406ce30a890108abd1f2b450c30ad86c39a3cbcb38326a8f0f7
+    restart: unless-stopped
+    environment:
+      FIREFLY_URL: http://firefly:8080
+      FIREFLY_PERSONAL_TOKEN: ${CATEGORIZER_FIREFLY_TOKEN:?set in .env}
+      AI_PROVIDER: openai
+      OPENAI_BASE_URL: ${LLM_OPENAI_BASE_URL:-http://ollama:11434/v1}
+      OPENAI_API_KEY: ${LLM_API_KEY:-ollama}
+      OPENAI_MODEL: ${LLM_MODEL:-qwen2.5:3b}
+      HISTORY_LOOKBACK_DAYS: "180"
+      CONFIG_FILE: /data/config.json
+    volumes:
+      - categorizer_data:/data
+    networks: [ai]
+    depends_on: [firefly, ollama]
+
+  # Publishes the categoriser's settings page on 127.0.0.1:3010 (3000 is taken by another program on this Mac).
+  # Needed because Docker does not publish ports of a container that is only on an internet-less network.
+  categorizer-ui:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - ./docker/categorizer-ui.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:3010:80"
+    networks: [internal, ai]
+    depends_on: [categorizer]
+
   bridge:
     <<: *bridge
     command: >-
@@ -133,7 +179,14 @@ volumes:
   postgres_data:
   firefly_upload:
   bridge_data:
+  categorizer_data:
+  ollama_models:
 
 networks:
   internal:
     driver: bridge
+  # No route to the internet at all (internal: true). The AI services live only here, so even a bug
+  # or a wrong setting cannot send transaction text out of this machine.
+  ai:
+    driver: bridge
+    internal: true

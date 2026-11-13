@@ -1,0 +1,27 @@
+# Spending categories for Firefly. Edit freely, then run:
+#   docker compose run --rm -T bridge python manage.py seed_categories - < categories.yaml
+# The AI categoriser reads each category's notes as hints, so keep them short and concrete.
+categories:
+  - {name: "Food & dining", notes: "Restaurants, cafes, food delivery: Zomato, Swiggy, Domino's, tea and snack stalls, momo centres."}
+  - {name: "Groceries", notes: "Kirana and grocery stores, Blinkit, Zepto, Instamart, BigBasket, DMart, milk and vegetables."}
+  - {name: "Shopping", notes: "Clothes, electronics, online shopping: Amazon, Flipkart, Myntra, Meesho, Ajio, malls, Reliance Trends."}
+  - {name: "Transport", notes: "Uber, Ola, Rapido, auto, metro, bus, train tickets on IRCTC, parking, tolls, FASTag."}
+  - {name: "Fuel", notes: "Petrol and diesel at fuel stations: Indian Oil, HP, Bharat Petroleum, Shell."}
+  - {name: "Bills & utilities", notes: "Electricity, water, gas cylinder, broadband bill payments, maintenance."}
+  - {name: "Mobile & internet", notes: "Mobile recharges and postpaid bills: Jio, Airtel, Vi; broadband."}
+  - {name: "Subscriptions", notes: "Recurring digital services: Google Play, YouTube, Netflix, Hotstar, Spotify, cloud and AI tools, software."}
+  - {name: "Rent", notes: "House rent and deposits."}
+  - {name: "EMI & loans", notes: "Loan EMIs, bike loan, card EMIs, Flexipay instalments."}
+  - {name: "Investments", notes: "SIPs and lump sums into mutual funds and stocks: Groww, Zerodha, ICICI Direct, INDmoney, CAMS, KFintech."}
+  - {name: "Insurance", notes: "Health, life, vehicle insurance premiums."}
+  - {name: "Health", notes: "Doctors, hospitals, pharmacies, medicines, lab tests, gym."}
+  - {name: "Education", notes: "Courses, books, exam and college fees."}
+  - {name: "Travel", notes: "Flights, hotels, holiday bookings: MakeMyTrip, Goibibo, Ixigo."}
+  - {name: "Entertainment", notes: "Movies, events, games, outings."}
+  - {name: "Family & friends", notes: "Money sent to people (UPI to a person's name), gifts."}
+  - {name: "Cash", notes: "ATM cash withdrawals."}
+  - {name: "Fees & charges", notes: "Bank and card fees, GST on fees, late payment charges, interest charged."}
+  - {name: "Salary", notes: "Salary credits from the employer."}
+  - {name: "Interest", notes: "Savings interest and dividends credited."}
+  - {name: "Refunds", notes: "Refunds and cashback credited."}
+  - {name: "Other", notes: "Anything that fits no other category."}

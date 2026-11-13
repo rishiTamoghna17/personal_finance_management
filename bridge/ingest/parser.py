@@ -36,6 +36,7 @@ class Pattern:
     kind: str = "payment"
     reason: str = ""
     account_from_default: bool = False
+    category: str = ""
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,7 @@ class Parsed:
     reference: str = ""
     target_last4: str = ""
     balance_paise: int | None = None
+    category: str = ""
 
 
 @dataclass
@@ -138,6 +140,7 @@ def _load_profile(path):
                 kind=raw.get("kind", "payment"),
                 reason=raw.get("reason", ""),
                 account_from_default=account_from_default,
+                category=raw.get("category", ""),
             )
         )
     if not patterns:
@@ -252,6 +255,7 @@ def parse(header, body, sent_at, source="sms"):
                 reference=(g.get("ref") or "").strip()[:64],
                 target_last4=_last4(g.get("target")),
                 balance_paise=_paise(g["balance"]) if "balance" in g else None,
+                category=pattern.category or ("Refunds" if pattern.kind == "refund" else ""),
             )
         except MoneyError as exc:
             return ParseResult("unparsed", reason=f"{pattern.ref}: bad amount ({exc})", pattern_ref=pattern.ref)

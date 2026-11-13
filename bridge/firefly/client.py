@@ -68,6 +68,24 @@ class FireflyClient:
         """POST /transactions. Returns the created transaction group."""
         return self._request("POST", "transactions", json=payload)["data"]
 
+    def list_all(self, path):
+        items, page = [], 1
+        while True:
+            body = self._request("GET", path, params={"page": page, "limit": 50})
+            items.extend(body.get("data", []))
+            if page >= int(body.get("meta", {}).get("pagination", {}).get("total_pages", 1)):
+                return items
+            page += 1
+
+    def create_category(self, name, notes):
+        return self._request("POST", "categories", json={"name": name, "notes": notes})["data"]
+
+    def update_category(self, category_id, name, notes):
+        return self._request("PUT", f"categories/{category_id}", json={"name": name, "notes": notes})["data"]
+
+    def create_webhook(self, payload):
+        return self._request("POST", "webhooks", json=payload)["data"]
+
     def enable_currency(self, code):
         # Firefly answers 415 to a POST with no Content-Type, so send an empty JSON body.
         return self._request("POST", f"currencies/{code}/enable", json={})

@@ -51,6 +51,8 @@ def build_payload(entry):
     }
     if entry.reference:
         tx["internal_reference"] = entry.reference
+    if entry.category and entry.type != LedgerEntry.Type.TRANSFER:
+        tx["category_name"] = entry.category  # Firefly creates it if missing
     if entry.type == LedgerEntry.Type.WITHDRAWAL:
         tx["source_id"] = entry.source_account_id
         tx["destination_name"] = entry.counterparty or "Unknown payee"

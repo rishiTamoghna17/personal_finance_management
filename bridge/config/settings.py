@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "ingest",
     "mail",
     "statements",
+    "llm",
 ]
 
 MIDDLEWARE = [
@@ -108,6 +109,14 @@ INGEST_LEDGER_START = env("INGEST_LEDGER_START", "2026-11-01")
 GMAIL_POLL_MINUTES = int(env("GMAIL_POLL_MINUTES", "10"))
 GMAIL_REQUEST_PAUSE_SECONDS = float(env("GMAIL_REQUEST_PAUSE_SECONDS", "0.25"))
 STATEMENT_DIR = Path(env("STATEMENT_DIR", "/data/statements"))
+
+# --- AI (M4). Default: the ollama container on the internal network, so no message leaves this machine.
+LLM_PROVIDER = env("LLM_PROVIDER", "ollama")  # ollama | gemini | groq
+LLM_MODEL = env("LLM_MODEL", "qwen2.5:3b")
+LLM_OLLAMA_URL = env("LLM_OLLAMA_URL", "http://ollama:11434")
+LLM_API_KEY = env("LLM_API_KEY", "")
+LLM_TIMEOUT_SECONDS = int(env("LLM_TIMEOUT_SECONDS", "120"))
+LLM_FALLBACK_ENABLED = env("LLM_FALLBACK_ENABLED", "1") == "1"
 
 CELERY_BROKER_URL = REDIS_URL or "memory://"
 CELERY_RESULT_BACKEND = REDIS_URL or "cache+memory://"

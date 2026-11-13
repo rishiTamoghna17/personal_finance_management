@@ -42,3 +42,5 @@ Matching ignores case and treats any run of whitespace as one space.
 `type: review` (with a `reason`) sends a known message straight to the review queue, for example a card spend in a foreign currency whose INR amount only appears on the statement.
 
 Email profiles live in `email/`, keyed by the sender's domain (`senders: [hdfcbank.bank.in]`); the text parsed is the subject followed by the body.
+
+A pattern may set `category:` (for example `Salary`, `Interest`, `Cash`) when the message itself says what the money is; refunds default to `Refunds`. Everything else is left for the AI categoriser.

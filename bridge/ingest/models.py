@@ -62,6 +62,7 @@ class LedgerEntry(models.Model):
     reference = models.CharField(max_length=64, blank=True)
     awaiting_partner = models.BooleanField(default=False)
     is_reversal = models.BooleanField(default=False)
+    category = models.CharField(max_length=64, blank=True)  # set when the bridge knows it (salary, interest, cash)
     firefly_group_id = models.CharField(max_length=32, blank=True)
     posted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -97,6 +98,7 @@ class ParsedTransaction(models.Model):
     vpa = models.CharField(max_length=200, blank=True)
     reference = models.CharField(max_length=64, blank=True, db_index=True)
     occurred_at = models.DateTimeField(db_index=True)
+    category = models.CharField(max_length=64, blank=True)
 
     def __str__(self):
         return f"parsed#{self.pk} {self.direction} {self.amount_paise}"
@@ -131,6 +133,7 @@ class ReviewItem(models.Model):
     raw = models.ForeignKey(RawMessage, null=True, blank=True, on_delete=models.CASCADE, related_name="reviews")
     entry = models.ForeignKey(LedgerEntry, null=True, blank=True, on_delete=models.CASCADE, related_name="reviews")
     candidates = models.JSONField(default=list, blank=True)  # ledger entry ids
+    suggestion = models.JSONField(default=dict, blank=True)  # checked AI reading of an unparsed message (M4)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.OPEN, db_index=True)
     resolution = models.CharField(max_length=200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

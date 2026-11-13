@@ -3,9 +3,9 @@
 Update this file at the start and end of every milestone. It is how a new session knows where things stand.
 
 ## Now
-- Approved milestone: none (M3 finished 2026-11-13; M4 not planned yet)
+- Approved milestone: M4 (approved 2026-11-13; Ollama in Docker, suggestion-only fallback, proposed categories)
 - Status: M1-M3 running: SMS from the phone, bank emails from two Gmail accounts, statement PDFs.
-- Next step: owner fills 1 Nov opening balances in `accounts.yaml` and re-runs `seed_firefly`; then plan M4 (AI categoriser, LLM fallback).
+- Next step: build M4; owner also fills 1 Nov opening balances in `accounts.yaml` (not blocking).
 
 ## Milestones
 | ID | Scope | Status | Approved on | Finished on |
@@ -13,7 +13,7 @@ Update this file at the start and end of every milestone. It is how a new sessio
 | M1 | Docker stack, Firefly, bridge skeleton, accounts | Finished | 2026-11-12 | 2026-11-12 |
 | M2 | SMS ingestion, OTP filter, profiles, reconciliation | Finished | 2026-11-12 | 2026-11-13 |
 | M3 | Gmail alerts, statement PDFs | Finished | 2026-11-13 | 2026-11-13 |
-| M4 | AI categoriser, LLM fallback | Not started | | |
+| M4 | AI categoriser, LLM fallback | In progress | 2026-11-13 | |
 | M5 | Goals, EMI, net worth, CAS, credit report | Not started | | |
 | M6 | Telegram advisor | Not started | | |
 | M7 | Deployment, backups, HTTPS | Not started | | |
@@ -307,6 +307,46 @@ Important for the build: the SMS secret filter, applied to emails, flags far too
 2. Which banks and cards email you monthly statements, and do you know each statement's password format? (Do not send passwords in chat; the command will ask for them.)
 3. Do any of your banks send transaction alert emails, or only SMS?
 4. OK to leave CSV / data-importer out of M3?
+
+## M4 plan (presented and approved 2026-11-13)
+
+### Checked before planning (2026-11-13)
+- FireflyIII-AI-Categorizer: AGPL-3.0, last commit 2026-10-18, 24 stars, no tagged releases (image `latest` only, so it will be pinned by digest). Classifies **withdrawals only**, into the owner's existing Firefly categories, with three outcomes (classified / assumed / needs review) and a Review page; reuses past categories for repeat merchants without calling the LLM. It sends the transaction **description, payee name and amount** (plus past examples) to the LLM, unmasked, and it has no login.
+- Our descriptions contain people's names and UPI IDs (e.g. a UPI payment to a person), so a cloud LLM would receive them.
+- This Mac: Apple M4, 16 GB RAM, 48 GB free disk. Ollama is not installed. A 7-8B model (about 5 GB) runs comfortably here with the Mac's GPU when Ollama runs natively (not inside Docker).
+
+### Scope
+1. **Categories.** A `categories.yaml` (owner-editable) seeded into Firefly by a command: Food & dining, Groceries, Shopping, Transport, Fuel, Bills & utilities, Mobile & internet, Subscriptions, Rent, EMI & loans, Investments (SIP), Insurance, Health, Education, Travel, Entertainment, Family & friends, Cash, Fees & charges, Salary, Interest, Refunds, Other. Deposits the bridge already understands (salary credit, interest, refund) get their category from the bridge when posted; the categoriser handles withdrawals.
+2. **Categoriser.** Run FireflyIII-AI-Categorizer in Docker on the internal network; its settings page on `127.0.0.1:3000` only (never the Wi-Fi address, never the internet). A Firefly webhook "transaction stored" → `http://categorizer:3000/webhook`, created by a bridge command. Its own Firefly token (separate, revocable). It points at the chosen LLM. Low-confidence results stay in its Review page (and later Telegram, M6).
+3. **LLM fallback parser** (bridge, provider pluggable: `ollama` | `gemini` | `groq`). Only for messages from known bank senders that no profile reads (now in review as "unparsed").
+   - Masking before anything is sent, whatever the provider: long numbers (references, phone numbers) and UPI IDs become placeholders (`<REF1>`, `<VPA1>`) that are put back locally after the answer; account/card digits are already masked by the bank (`XX1234`) and stay; for cloud providers, runs of capitalised words that look like names are also replaced.
+   - The model returns structured JSON (is it a transaction, amount, debit/credit, account digits, date, payee, reference). The bridge checks it against the original text: the amount and the account digits must appear in the message, the date must be within 7 days of the message; anything else is rejected.
+   - A checked result becomes a **suggestion on the review item** (one action to accept it), not a posted transaction. Each accepted message is also kept as a sample for writing a proper profile pattern later (rule 9).
+4. Tests: masking (no long number, UPI ID or name reaches the request), validation rejects invented amounts/accounts, provider switch, webhook creation, category seeding. LLM calls are mocked in tests; one live run at the end.
+
+### Left out of M4
+- Telegram review buttons (M6). Statement balance comparison (after opening balances).
+
+### Owner's answers (2026-11-13)
+- Provider: the owner asked whether Google Cloud's $300 trial credit could pay for the model until M7. Findings (secondary sources, not confirmed in Google's terms): the credit does not cover the Gemini API key from AI Studio; it may cover Gemini on Vertex AI, but one report says that stops for trials started or upgraded from 2026-11-16; the trial lasts about 90 days; Vertex needs short-lived OAuth tokens, which the categoriser cannot use. Decision, as the owner said: **use Ollama on this Mac**.
+
+### Questions for the owner (as asked)
+1. **LLM provider.** Recommended: **Ollama on this Mac** (free, nothing leaves the Mac; needs installing Ollama and downloading a ~5 GB model; only works while the Mac is on). Alternatives: **Gemini** free tier or **Groq** free tier (free API keys, rate-limited; payee names and UPI IDs from the categoriser would leave the Mac; Google's free tier may use requests to improve its products). For M7 on a small cloud VM, a local model may be too slow, so the provider stays switchable.
+2. **Fallback parser:** suggestion only, you accept each one (recommended), or post automatically when the checks pass?
+3. **Categories:** is the list above right, or what would you add or remove?
+
+### M4 progress (2026-11-13)
+- Ollama was first installed on the Mac with Homebrew; the owner asked for Docker instead, so it was stopped and uninstalled, its model files and `~/.ollama` deleted, and python@3.15 (pulled in by that install) removed; `python3` was re-linked to the owner's Homebrew Python 3.14.7 as before. Ollama now runs as the `ollama` service (image 0.40.16, internal network, model volume), model qwen2.5:3b.
+- 23 categories seeded into Firefly from `categories.yaml`, with notes for the categoriser. Bridge-known categories: ICICI salary credits (Salary), interest credits (Interest), ATM withdrawals (Cash), refunds (Refunds).
+- Categoriser running (image pinned by digest), its own Firefly token in `.env`, settings page on 127.0.0.1:3010 only (checked: not reachable on the Wi-Fi address). Firefly's stored `allow_webhooks` setting switched on; webhook "AI categoriser (internal)" -> http://categorizer:3000/webhook created.
+- LLM fallback: masking (UPI IDs and long numbers always; names too for cloud providers), checks against the original text, suggestion stored on the review item, `POST /api/v1/review/<id>/accept`. Only messages from known bank senders. 353 tests pass.
+
+### M4 incident (2026-11-13): categoriser called OpenAI
+- On the first batch run the categoriser sent 12 requests to api.openai.com instead of the local model. Each request carried one existing transaction's description, payee name and amount (and category names). OpenAI rejected all 12 with 401 (the placeholder key "ollama" is not a valid key). The categoriser was stopped immediately.
+- Cause: an upstream bug. `ApplyStored` in the categoriser's `internal/config/config.go` always overwrites `OPENAI_BASE_URL` from the environment with the settings file's value; with no settings file it becomes empty, and an empty base URL means OpenAI's public endpoint.
+- Fixes: (1) the settings file now holds the local address (`http://ollama:11434/v1`); (2) the categoriser and Ollama now sit only on the `ai` Docker network, which has no internet route (checked: api.openai.com cannot even be resolved from it), so a wrong setting can no longer send data out; (3) the categoriser page is published through a local-only nginx forwarder.
+- After the fix: batch of 12 ran locally, no errors, no OpenAI calls in the log; all 12 marked needs-review (no history yet; local shops and people). The owner's categories in the review page will be reused for repeat payees.
+- LLM fallback live check (made-up messages, nothing stored): debit and credit read correctly with account digits and reference; offer and declined payment rejected; 3-10 s per message after the model is loaded (the first load took ~95 s).
 
 ## Open questions for the owner
 - How many accounts at each bank (HDFC, SBI, ICICI, HSBC, AXIS), and savings, salary or current?

@@ -32,11 +32,13 @@ patterns:
     match: 'Your a/c no\. X+(?P<account>\d{4}) is credited by Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) on (?P<date>\d{2}-\d{2}-\d{2}) by a/c linked to mobile \S+?-(?P<counterparty>.+?) \(IMPS Ref# (?P<ref>\d+)\)'
   # ATMSBI: "Rs.500 withdrawn at SBI ATM <id> from A/cX1234 on 01Apr26 Transaction Number 1234. Available Balance Rs.1234.00."
   - id: atm-withdrawal
+    category: Cash
     direction: debit
     channel: atm
     match: 'Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) withdrawn at SBI ATM \S+ from A/cX(?P<account>\d{4}) on (?P<date>\d{1,2}[A-Za-z]{3}\d{2}) Transaction Number (?P<ref>\d+)\. Available Balance Rs\.? ?(?P<balance>[\d,]+(?:\.\d+)?)'
   # CBSSBI: "Your A/C XXXXX123456 has a credit by NACH- COMPANY of Rs 12.00 on 01/02/26. Avl Bal Rs 1,234.00."
   - id: nach-credit
+    category: Interest
     direction: credit
     channel: nach
     match: 'Your A/C X+(?P<account>\d{4,}) has a credit by NACH- ?(?P<counterparty>.+?) of Rs\.? ?(?P<amount>[\d,]+(?:\.\d+)?) on (?P<date>\d{2}/\d{2}/\d{2})\. Avl Bal Rs\.? ?(?P<balance>[\d,]+(?:\.\d+)?)'

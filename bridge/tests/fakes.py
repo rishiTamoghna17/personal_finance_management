@@ -10,6 +10,8 @@ class FakeFirefly:
     def __init__(self, page_size=50):
         self.accounts = []
         self.transactions = []
+        self.categories = []
+        self.webhooks = []
         self.calls = []
         self.fail_with = None
         self.page_size = page_size
@@ -38,6 +40,17 @@ class FakeFirefly:
             total_pages = max(1, -(-len(rows) // self.page_size))
             chunk = rows[(page - 1) * self.page_size : page * self.page_size]
             return httpx.Response(200, json={"data": chunk, "meta": {"pagination": {"total_pages": total_pages}}})
+        if path in ("categories", "webhooks"):
+            store = self.categories if path == "categories" else self.webhooks
+            if request.method == "GET":
+                return httpx.Response(200, json={"data": store, "meta": {"pagination": {"total_pages": 1}}})
+            body = json.loads(request.content)
+            store.append({"id": str(len(store) + 1), "attributes": body})
+            return httpx.Response(200, json={"data": store[-1]})
+        if request.method == "PUT" and path.startswith("categories/"):
+            item = next(c for c in self.categories if c["id"] == path.split("/")[1])
+            item["attributes"].update(json.loads(request.content))
+            return httpx.Response(200, json={"data": item})
         if request.method == "POST" and path == "transactions":
             body = json.loads(request.content)
             self.transactions.append(body)

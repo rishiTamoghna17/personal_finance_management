@@ -126,6 +126,7 @@ def _review_json(item):
         "status": item.status,
         "created_at": item.created_at.isoformat(),
         "candidates": item.candidates,
+        "suggestion": item.suggestion,
         "entry_id": item.entry_id,
         "message": None if raw is None else {
             "id": raw.pk, "source": raw.source, "sender": raw.sender, "text": raw.body,
@@ -152,7 +153,7 @@ class ReviewActionView(APIView):
         item = get_object_or_404(ReviewItem, pk=pk)
         if item.status != ReviewItem.Status.OPEN:
             return Response({"detail": "already closed"}, status=409)
-        handler = {"ignore": self._ignore, "reparse": self._reparse, "resolve": self._resolve}.get(action)
+        handler = {"ignore": self._ignore, "reparse": self._reparse, "resolve": self._resolve, "accept": self._accept}.get(action)
         if handler is None:
             return Response({"detail": "unknown action"}, status=404)
         return handler(request, item)
@@ -182,6 +183,32 @@ class ReviewActionView(APIView):
         self._close(item, ReviewItem.Status.RESOLVED, "re-parsed")
         status = reconcile.process(item.raw.pk)
         return Response({"item": _review_json(item), "message_status": status})
+
+    def _accept(self, request, item):
+        """Accept the checked AI reading of an unparsed message: it then goes through normal reconciliation."""
+        import datetime as dt
+
+        from . import accounts
+
+        s = item.suggestion or {}
+        if s.get("status") != "ok":
+            return Response({"detail": "no accepted-able AI suggestion on this item"}, status=400)
+        account, why = accounts.resolve(s["account_last4"])
+        if account is None:
+            return Response({"detail": why}, status=409)
+        with transaction.atomic():
+            raw = item.raw
+            raw.pattern_ref = "ai-suggestion"
+            raw.save(update_fields=["pattern_ref"])
+            pt = ParsedTransaction.objects.create(
+                raw=raw, pattern_ref="ai-suggestion", amount_paise=s["amount_paise"], direction=s["direction"],
+                channel="other", account_last4=s["account_last4"], firefly_account_id=account.id,
+                counterparty=s.get("counterparty", ""), reference=s.get("reference", ""),
+                occurred_at=dt.datetime.fromisoformat(s["occurred_at"]),
+            )
+            reconcile._reconcile(pt)
+            self._close(item, ReviewItem.Status.RESOLVED, "accepted AI suggestion")
+        return Response(_review_json(item))
 
     def _resolve(self, request, item):
         """Body for ambiguous_match: {"entry_id": N} to merge, or {"entry_id": null} for a new payment.

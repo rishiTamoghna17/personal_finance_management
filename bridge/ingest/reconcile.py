@@ -162,6 +162,7 @@ def _new_entry(pt, **fields):
         channel=pt.channel,
         reference=pt.reference,
         counterparty=pt.counterparty or pt.vpa,
+        category=pt.category,
     )
     data.update(fields)
     return LedgerEntry.objects.create(**data)
@@ -245,7 +246,11 @@ def process(raw_id):
                 raw.status, raw.status_reason = RawMessage.Status.IGNORED, "bank email without a transaction (notice or offer)"
                 raw.save(update_fields=["status", "status_reason", "pattern_ref"])
                 return raw.status
-            _review(raw, ReviewItem.Reason.UNPARSED, result.reason)
+            item = _review(raw, ReviewItem.Reason.UNPARSED, result.reason)
+            if settings.LLM_FALLBACK_ENABLED and parser.profiles(raw.source).get(raw.header):
+                from llm.tasks import suggest_for_review  # only messages from known bank senders
+
+                transaction.on_commit(lambda: suggest_for_review.delay(item.pk))
             return raw.status
         if result.status == "review":
             _review(raw, ReviewItem.Reason.UNPARSED, result.reason)
@@ -281,7 +286,7 @@ def process(raw_id):
             raw=raw, pattern_ref=p.pattern_ref, amount_paise=p.amount_paise, direction=p.direction, kind=kind,
             channel=p.channel, account_last4=p.account_last4, firefly_account_id=account.id,
             target_last4=p.target_last4, counterparty=p.counterparty, vpa=p.vpa, reference=p.reference,
-            occurred_at=p.occurred_at,
+            occurred_at=p.occurred_at, category=p.category,
         )
         _reconcile(pt)
         raw.refresh_from_db(fields=["status"])
