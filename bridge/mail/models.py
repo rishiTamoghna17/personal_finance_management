@@ -19,12 +19,20 @@ class StatementAttachment(models.Model):
     """A PDF attached to a bank email. Downloaded and read by the statement import (part B)."""
 
     class Status(models.TextChoices):
-        PENDING = "pending"
+        PENDING = "pending"  # recorded, not downloaded
+        DOWNLOADED = "downloaded"
+        NEEDS_PASSWORD = "needs_password"  # no saved password opens it yet
+        NEEDS_PARSER = "needs_parser"  # opens, but no parser for this layout yet
         DONE = "done"
         SKIPPED = "skipped"
         FAILED = "failed"
 
-    raw = models.ForeignKey("ingest.RawMessage", on_delete=models.CASCADE, related_name="attachments")
+    # Null for statements fetched by the backfill command (older than the ledger start).
+    raw = models.ForeignKey("ingest.RawMessage", null=True, blank=True, on_delete=models.CASCADE, related_name="attachments")
+    key = models.SlugField(max_length=32, blank=True)  # statement password key: hsbc, icici, axis, sbi-card, hdfc
+    subject = models.CharField(max_length=300, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    local_file = models.CharField(max_length=300, blank=True)  # the PDF exactly as the bank sent it (still locked)
     account = models.ForeignKey(GmailAccount, on_delete=models.CASCADE, related_name="attachments")
     gmail_message_id = models.CharField(max_length=64)
     attachment_id = models.TextField()

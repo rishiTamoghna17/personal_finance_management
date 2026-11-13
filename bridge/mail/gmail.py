@@ -49,3 +49,10 @@ def list_ids(service, query):
 def get_message(service, message_id):
     time.sleep(settings.GMAIL_REQUEST_PAUSE_SECONDS)
     return call(service.users().messages().get(userId="me", id=message_id, format="full"))
+
+
+def get_attachment(service, message_id, attachment_id):
+    import base64
+
+    data = call(service.users().messages().attachments().get(userId="me", messageId=message_id, id=attachment_id))["data"]
+    return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))

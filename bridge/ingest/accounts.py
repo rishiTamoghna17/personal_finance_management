@@ -49,7 +49,7 @@ def resolve(last4):
     def lookup(directory):
         if len(last4) == 4:
             return directory.get(last4)
-        # Three digits (e.g. ICICI "XX378"): every account whose last four end with them.
+        # Fewer digits (ICICI SMS show three, SBI Card statements two): every account whose last four end with them.
         found = [acct for key, accts in directory.items() if key.endswith(last4) for acct in accts]
         return found or None
 

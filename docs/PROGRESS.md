@@ -4,7 +4,7 @@ Update this file at the start and end of every milestone. It is how a new sessio
 
 ## Now
 - Approved milestone: M3 (approved 2026-11-13)
-- Status: M3 in progress. Part A (Gmail alert emails) is live. Part B (statement PDFs) next: needs the owner to enter statement passwords in a hidden prompt.
+- Status: M3 parts A (emails) and B (statement PDFs) built and running. Remaining before closing M3: owner's review; Firefly balance comparison once opening balances are filled.
 - Next step: owner answers the M3 questions; owner also fills opening balances in `accounts.yaml` and re-runs `seed_firefly` (not blocking M3).
 
 ## Milestones
@@ -282,6 +282,16 @@ Important for the build: the SMS secret filter, applied to emails, flags far too
 - `POST /api/v1/ingest/email` (token + HMAC). Statement PDFs attached to bank emails are recorded as `StatementAttachment` (pending) for part B.
 - First live poll (mail since 2026-11-01): 40 emails, 11 transactions; Firefly now holds 12 transactions (11 from email, 1 from SMS), all withdrawals, ₹2,832.69. One Axis USD spend is in review.
 - 320 tests pass. Not committed yet.
+
+### M3 part B result (2026-11-13): statement PDFs
+- Passwords: `statement_password setup` asks once per bank in a hidden prompt, tests each password on that bank's downloaded statements and saves it (encrypted) only if it opens them. HSBC, ICICI, Axis and SBI Card saved; all their statements open. (A first version asked twice; the terminal mangled the repeat entry, so it was replaced.) The owner asked to give DOB/card/account numbers in chat instead; refused, since passwords and full numbers are never handled in plain text.
+- PDFs are downloaded as sent (still locked) to the `bridge_data` volume and unlocked only in memory (pikepdf to memory, pdfplumber); a test checks no unlocked copy is written.
+- Parsers (`bridge/statements/parsers/`), each refusing a statement that does not add up: HSBC and ICICI follow the running balance (page "Total:" / carried-forward lines handled, closing balance checked); SBI Card checks rows against its account summary (undated GST rows read; under Rs 1 rounding allowed); Axis reads rows and the payment summary.
+- 13 statements (6 months) parsed. Every line is before 2026-11-01, so nothing new was posted; each closing balance is stored as a confirmed bank balance. Latest: ICICI 30 Sep, HSBC 29 Oct, SBI SimplyCLICK 17 Oct, Axis 13 Oct, Axis Amex 10 Nov.
+- Statement lines from the ledger start are matched to SMS/email payments by account, amount, direction and +/-2 days (reference first); unmatched lines become new transactions; ambiguous ones go to review. Hourly beat task processes new statement PDFs from the Gmail poll.
+- Not parsed (need a parser later): HSBC's first statement (August, before the ledger start) and the Axis EMI letter (for M5).
+- Not done: comparing a statement's closing balance with Firefly's balance on that date (meaningful once opening balances are filled in).
+- 334 tests pass.
 
 ### Questions for the owner (as asked)
 1. Gmail access: Gmail API with read-only permission (recommended: it can only read; needs a free Google Cloud project and a one-time sign-in), or IMAP with an app password (simpler, but that password unlocks the whole mailbox and could also send mail)?

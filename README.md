@@ -85,6 +85,13 @@ Limits: 120 requests a minute with a token, 20 without, 256 KiB per request.
 
 Bank profiles are written only from your real, masked SMS. None exist yet.
 
+## Bank emails and statements (M3)
+
+- Gmail accounts are connected once, read-only: `docker compose run --rm -p 127.0.0.1:8765:8765 bridge python manage.py gmail_connect <tag> --client secrets/gmail_client.json`. Tokens are stored encrypted with `BRIDGE_ENCRYPTION_KEY` (keep a copy of `.env`; without that key they cannot be read).
+- Every 10 minutes new mail from the banks' alert addresses is read (OTP emails are dropped first) and goes through the same pipeline as SMS.
+- Statement passwords: `docker compose run --rm bridge python manage.py statement_password setup` (hidden prompt; each password is tested on real statements before it is saved, encrypted).
+- `docker compose run --rm bridge python manage.py statements_backfill --months 6` fetches older statement PDFs; `statement_status` lists them and their state. PDFs are kept as the bank sent them (locked) and opened only in memory.
+
 ## Tests
 
 ```bash

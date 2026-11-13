@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "firefly",
     "ingest",
     "mail",
+    "statements",
 ]
 
 MIDDLEWARE = [
@@ -116,6 +117,7 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_BEAT_SCHEDULE = {
     "ingest-sweep": {"task": "ingest.tasks.sweep", "schedule": 60.0},
     "gmail-poll": {"task": "mail.tasks.poll_all", "schedule": GMAIL_POLL_MINUTES * 60.0},
+    "statements": {"task": "statements.tasks.process_pending", "schedule": 3600.0},
 }
 
 # Log metadata only. Message bodies, account numbers and tokens are never logged.

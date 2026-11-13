@@ -22,6 +22,12 @@ def bank_query(after_seconds):
     return f"after:{after_seconds} from:({' OR '.join(domains)})"
 
 
+def statement_key(header):
+    """'HDFCBANK.BANK.IN' -> 'hdfc' (the email profile id without '-email'); used to pick statement passwords."""
+    profile = parser.profiles("email").get(header)
+    return profile.id.removesuffix("-email") if profile else ""
+
+
 def start_ms(account):
     ledger_start = dt.datetime.fromisoformat(settings.INGEST_LEDGER_START).replace(tzinfo=parser.IST)
     return max(account.last_seen_ms, int(ledger_start.timestamp() * 1000))
@@ -46,7 +52,8 @@ def ingest_message(account, message):
             for pdf in pdfs:
                 StatementAttachment.objects.get_or_create(
                     gmail_message_id=message["id"], filename=pdf["filename"],
-                    defaults={"raw": raw, "account": account, "attachment_id": pdf["attachment_id"], "size": pdf["size"]},
+                    defaults={"raw": raw, "account": account, "attachment_id": pdf["attachment_id"], "size": pdf["size"],
+                              "key": statement_key(header), "subject": subject[:300], "sent_at": sent_at},
                 )
     return "stored" if created else "duplicate"
 
