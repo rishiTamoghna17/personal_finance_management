@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 accounts.yaml
+goals.yaml
 *.pdf
 *.csv
 

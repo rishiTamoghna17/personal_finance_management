@@ -3,9 +3,9 @@
 Update this file at the start and end of every milestone. It is how a new session knows where things stand.
 
 ## Now
-- Approved milestone: M4 (approved 2026-11-13; Ollama in Docker, suggestion-only fallback, proposed categories)
-- Status: M1-M3 running: SMS from the phone, bank emails from two Gmail accounts, statement PDFs.
-- Next step: build M4; owner also fills 1 Nov opening balances in `accounts.yaml` (not blocking).
+- Approved milestone: none. M5 finished 2026-11-14; M6 (Telegram advisor) not planned yet.
+- Status: M1-M4 running: SMS from the phone, bank emails from two Gmail accounts, statement PDFs, local AI categoriser and checked fallback reader.
+- Next step: plan M6 when the owner asks; owner also fills 1 Nov opening balances in `accounts.yaml` and categorises payees on http://127.0.0.1:3010 (neither blocking).
 
 ## Milestones
 | ID | Scope | Status | Approved on | Finished on |
@@ -13,8 +13,8 @@ Update this file at the start and end of every milestone. It is how a new sessio
 | M1 | Docker stack, Firefly, bridge skeleton, accounts | Finished | 2026-11-12 | 2026-11-12 |
 | M2 | SMS ingestion, OTP filter, profiles, reconciliation | Finished | 2026-11-12 | 2026-11-13 |
 | M3 | Gmail alerts, statement PDFs | Finished | 2026-11-13 | 2026-11-13 |
-| M4 | AI categoriser, LLM fallback | In progress | 2026-11-13 | |
-| M5 | Goals, EMI, net worth, CAS, credit report | Not started | | |
+| M4 | AI categoriser, LLM fallback | Finished | 2026-11-13 | 2026-11-14 |
+| M5 | Goals, EMI, net worth, CAS, credit report | Finished (Experian reader left out) | 2026-11-14 | 2026-11-14 |
 | M6 | Telegram advisor | Not started | | |
 | M7 | Deployment, backups, HTTPS | Not started | | |
 | P2 | Android APK | Not approved | | |
@@ -347,6 +347,82 @@ Important for the build: the SMS secret filter, applied to emails, flags far too
 - Fixes: (1) the settings file now holds the local address (`http://ollama:11434/v1`); (2) the categoriser and Ollama now sit only on the `ai` Docker network, which has no internet route (checked: api.openai.com cannot even be resolved from it), so a wrong setting can no longer send data out; (3) the categoriser page is published through a local-only nginx forwarder.
 - After the fix: batch of 12 ran locally, no errors, no OpenAI calls in the log; all 12 marked needs-review (no history yet; local shops and people). The owner's categories in the review page will be reused for repeat payees.
 - LLM fallback live check (made-up messages, nothing stored): debit and credit read correctly with account digits and reference; offer and declined payment rejected; 3-10 s per message after the model is loaded (the first load took ~95 s).
+
+### M4 closing check (2026-11-14, by hand: /drift-review is not installed)
+- Rule 2: endpoints are health, accounts, ingest/sms, ingest/email, review (+ accept); none moves money. The categoriser only writes categories and tags on existing Firefly transactions.
+- Rule 3: the fallback reader sees only stored messages, which already passed the secret filter; its log line carries the review id and status only. Celery tasks take ids only.
+- Rule 4: no float in money code (the only `float(` is the Gmail request pause).
+- Isolation: ollama and the categoriser are only on the `ai` network; checked again: api.openai.com does not resolve from either, and the categoriser log has no OpenAI call since the fix.
+- Secrets in git: none (`.env`, `accounts.yaml`, `secrets/`, the categoriser `config.json` lives in a Docker volume).
+- 353 tests pass.
+- Left for the owner: categorise payees in the categoriser's Review page (repeat payees then get categories without the model); opening balances.
+- Upstream bug (categoriser ignores `OPENAI_BASE_URL` when its settings file is empty) not reported; reporting it is a public post, so only if the owner wants.
+
+## M5 plan (presented 2026-11-14, not approved)
+
+### Inputs found (2026-11-14)
+- **Holdings:** CDSL CAS monthly (all demat stocks and mutual funds, PAN as password); Groww holding statement; CAMS/KFintech folio statements and SIP confirmations. Shares seen in notices: IRB, Star Cement, Amara Raja, Ajmera Realty (from e-voting mail only, not a valuation).
+- **Credit report:** Experian report via Paisabazaar (7 emails, the email states a password rule); CIBIL sends enquiry alerts only, no report.
+- **EMIs:** Axis "EMI Letter with Monthly EMI Details" (PDF), SBI Card "Merchant EMI booked" emails (3); bike loan still planned.
+- **Card due dates:** already inside the statements M3 reads (due date, total and minimum due).
+
+### Scope
+1. **Investments in the ledger.** One Firefly asset account per holding place (e.g. "Mutual funds (CAS)", "Stocks (CAS)"), created by `seed_firefly` from `accounts.yaml`. A SIP or purchase debit from a bank becomes a **transfer** to that account (not an expense). After each CAS, the account is set to the CAS value by one transaction tagged `valuation` against a "Market value change" revenue/expense account, so Firefly's net worth includes investments and spending reports stay clean.
+2. **CAS parser** (CDSL first, then Groww if it adds anything): holdings with units, NAV/price and value **as stated in the statement, with its date** (rule 9: no prices fetched or guessed). Holdings stored in the bridge (`Holding`, `HoldingSnapshot`). Totals must match the statement's own total or the statement goes to review.
+3. **Credit report parser** (Experian): score, report date, open accounts with lender, type, sanctioned amount, outstanding, overdue, enquiries. Stored in the bridge only; used to cross-check that every loan and card in the report exists in `accounts.yaml` (missing ones go to review). Names, PAN, address and full account numbers are not stored.
+4. **EMI schedule.** `Loan` and `EmiSchedule` in the bridge from the Axis EMI letter and SBI Card merchant-EMI emails (principal, rate, tenure, monthly EMI, remaining months), plus the bike loan from `accounts.yaml` once active. Each EMI and each card due date is also created as a Firefly **bill** (subscription), so Firefly shows what is due and matches payments to it.
+5. **Card dues** from statements: due date, total and minimum due stored when a card statement is parsed; a review item if a due date passes with no payment seen.
+6. **Goals** as Firefly piggy banks, defined in a gitignored `goals.yaml` (name, target, date, linked account), seeded by a command. Emergency fund target can be written as "N months of average spend"; the bridge computes the rupee amount from Firefly's last 6 months.
+7. **Net worth snapshots.** Beat task on the 1st (and on demand) stores assets, liabilities, net worth and each account's balance with its status (confirmed / calculated / stale). Credit limits never count (rule 8).
+8. **Read-only API** for M6: `GET /api/v1/networth` (latest + history), `GET /api/v1/upcoming` (EMIs and card dues in the next N days), `GET /api/v1/goals` (progress from Firefly), `GET /api/v1/holdings`.
+9. **Tests** with masked fixtures for every new parser; valuation keeps net worth equal to assets minus liabilities; SIP debit becomes a transfer not an expense; EMI schedule maths in paise; snapshot idempotent per month.
+
+### No new dependencies; no cost.
+
+### Left out of M5
+- Live NAV or share prices (not an allowed data source; see question 2). Telegram alerts for dues (M6). HSBC's first statement (before the ledger start; not needed).
+
+### Questions for the owner
+1. **Goals:** which goals do you want first, with target and date (e.g. emergency fund = 6 months of spend, bike down-payment, an investment target)? They go in `goals.yaml`, not chat, if you prefer.
+2. **Valuation between statements:** use only the monthly CAS value (recommended, within the spec), or allow the free public AMFI daily NAV file for mutual funds (a spec change: new data source)?
+3. **Investments in Firefly:** OK to record them as asset accounts with a monthly `valuation` adjustment (recommended), or keep them only in the bridge and add them to net worth there?
+4. **Credit report:** do you download the Experian report from Paisabazaar regularly, and do you also get a CIBIL report PDF?
+5. **Bike loan:** still not disbursed?
+
+### Owner's answers (2026-11-14)
+1. Goals: later. The goals command and `goals.yaml` are built in M5; the owner fills goals whenever ready.
+2. Valuation: monthly CAS value only (no AMFI NAV).
+3. Investments in Firefly: asset accounts with a monthly `valuation` adjustment (approved with M5).
+- Goal (2026-11-14): Bike down-payment (Meteor 350), Rs 2,50,000 by 15 Dec 2026, money kept in HSBC Bank.
+4. Credit report: not downloaded regularly. Experian reports that arrive by email are parsed; nothing is required.
+5. Bike loan: planned for December 2026; owner changes it to `active` in `accounts.yaml` when disbursed.
+- Groww API checked and not used: trading API, demat stocks only (no mutual funds), no current value without the paid plan, tokens expire daily and can also place orders.
+
+### M5 progress (2026-11-14)
+- New `wealth` app. Read-only endpoints: `/api/v1/networth`, `/upcoming`, `/goals`, `/holdings`.
+- **EMIs:** Axis EMI letter parser (schedule must add up to the converted amount, within the letter's whole-rupee rounding). The owner's Flipkart EMI (6 x Rs 3,507, Nov 2026 to Apr 2027) is stored with its schedule and created as a Firefly bill.
+- **Card dues:** due date, total and minimum (Axis) recorded from card statements; 7 recorded. A daily task marks a due paid when payments on the card since the statement reach the minimum (each payment counted once), otherwise raises a `card_due_unpaid` review item. Statements from before the ledger start are not judged.
+- **Goals:** `goals.yaml` (gitignored, example in `goals.example.yaml`) -> Firefly piggy banks via `seed_goals`; progress = positive balance of the linked accounts, capped at the target, refreshed daily. Emergency fund can be `months_of_spend: N` (average of the last 6 whole months, CAS revaluations left out). Bike goal created.
+- **Net worth:** `networth_snapshot` command and beat on the 1st (06:00 IST) for the month just ended. Negative balances count as liabilities; credit limits are never read. Today it shows negative net worth because opening balances are still placeholders.
+- **Investments:** CAS documents create "Mutual funds (CAS)" and "Demat stocks (CAS)" asset accounts and revalue them to the CAS value on the statement date (one `valuation`-tagged transaction against "Market value change"); an older CAS never overrides a newer one. Debits to `MUTUAL FUNDS` (wording from the owner's SMS) are posted as transfers into the mutual funds account once it exists.
+- **Statement import:** a parser that finds figures that do not add up now marks the PDF `needs_parser` with the reason instead of failing the task.
+- Senders added: CDSL CAS (`cdslstatement.com`) and Experian as document-only email profiles (they can only ignore or review, never create transactions). 3 CAS PDFs downloaded (Jul-Sep 2026), still locked.
+- 377 tests pass.
+- **CDSL CAS reader** (2026-11-14, from the owner's real statements): holdings tables only; refused unless each row's units x price matches its value, each demat account matches its "Portfolio Value" and the total matches the "Grand Total". Owner's PAN saved through the hidden prompt (opens all 3). Jul, Aug, Sep 2026 imported oldest first: Firefly now has "Mutual funds (CAS)" and "Demat stocks (CAS)" at the CAS values as on 30 Sep 2026 (funds and an ETF held in demat via two brokers, plus a few stocks; values kept out of this public file). The October CAS (expected mid-November) is read automatically.
+- The CAS says "No MF Folios for this PAN pattern": funds held outside demat (CAMS/KFintech folios, e.g. folio SIPs seen in old SMS) are not in it. If any are still held, a CAMS/KFintech CAS would be needed (not in M5 scope yet).
+- Valuation adjustments before 1 Nov 2026 include purchases made before the ledger started; from 1 Nov, SIP debits are transfers and adjustments are market movement only.
+- 382 tests pass.
+- Not done: **Experian:** each report's password arrives by SMS (dropped by the OTP filter) and the owner does not download reports regularly, so no parser yet; one can be written from a report the owner chooses to open.
+
+### M5 closing check (2026-11-14, by hand: /drift-review is not installed)
+- Rule 2: new endpoints (networth, upcoming, goals, holdings) are GET only; the bridge writes only ledger records to Firefly (accounts, valuation transactions, bills, piggy banks).
+- Rule 3: the PAN was typed into the hidden prompt only; stored Fernet-encrypted (checked in the database), not in logs (checked). Celery tasks take ids or nothing.
+- Rule 4: no float in money code; units and prices kept as decimal strings; one display float in statement line text replaced.
+- Rule 8: credit limits never read; negative balances count as liabilities.
+- Rule 9: CAS values exactly as stated; no prices fetched; EMI and CAS readers written from the owner's real documents and refuse figures that do not add up.
+- Secrets in git: none (`goals.yaml`, `accounts.yaml`, `.env`, PDFs ignored).
+- Left out by the owner's decision: Experian reader. Left for later: CAMS/KFintech CAS if non-demat funds are held.
+- 382 tests pass.
 
 ## Open questions for the owner
 - How many accounts at each bank (HDFC, SBI, ICICI, HSBC, AXIS), and savings, salary or current?

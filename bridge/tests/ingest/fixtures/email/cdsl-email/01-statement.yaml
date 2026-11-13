@@ -1,0 +1,9 @@
+# From the owner's real email (2026-11-14), masked: name, PAN and dates replaced; subject wording kept.
+source: email
+sender: CDSL <eCAS@cdslstatement.com>
+text: 'CDSL Consolidated Account Statement (CAS) across Mutual Funds and Depositories for the month of September 2026
+
+  Dear Investor, The eCAS is password protected.'
+expect:
+  status: ignored
+  reason: CAS email (its PDF is handled by the statement import)

@@ -122,6 +122,7 @@ class ReviewItem(models.Model):
         TRANSFER_ALREADY_POSTED = "transfer_already_posted"
         UNPAIRED_TRANSFER = "unpaired_transfer"
         POST_FAILED = "post_failed"
+        CARD_DUE_UNPAID = "card_due_unpaid"  # M5: a card's due date passed without the minimum paid
 
     class Status(models.TextChoices):
         OPEN = "open"

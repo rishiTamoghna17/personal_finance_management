@@ -1,0 +1,11 @@
+# Experian credit report emails (via Paisabazaar or other partners). Written from the owner's real emails (2026-11-14).
+# Each report has its own password sent by SMS (that SMS is dropped by the secret filter), so reports are opened
+# only when the owner types the password into the import command.
+id: experian-email
+account_kind: document
+senders: [experian.com]
+patterns:
+  - id: statement
+    type: ignore
+    reason: credit report email (its PDF is read only when the owner imports it)
+    match: 'Experian Credit Report'

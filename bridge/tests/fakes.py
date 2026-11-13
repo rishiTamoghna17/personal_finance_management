@@ -12,6 +12,9 @@ class FakeFirefly:
         self.transactions = []
         self.categories = []
         self.webhooks = []
+        self.piggy_banks = []
+        self.bills = []
+        self.expenses = []  # [(payee name, "123.45")] returned by insight/expense/expense
         self.calls = []
         self.fail_with = None
         self.page_size = page_size
@@ -40,8 +43,20 @@ class FakeFirefly:
             total_pages = max(1, -(-len(rows) // self.page_size))
             chunk = rows[(page - 1) * self.page_size : page * self.page_size]
             return httpx.Response(200, json={"data": chunk, "meta": {"pagination": {"total_pages": total_pages}}})
-        if path in ("categories", "webhooks"):
-            store = self.categories if path == "categories" else self.webhooks
+        if request.method == "GET" and path == "insight/expense/expense":
+            rows = [{"name": n, "difference": "-" + a, "currency_code": "INR"} for n, a in self.expenses]
+            return httpx.Response(200, json=rows)
+        if request.method == "GET" and path.startswith("accounts/"):
+            account = next(a for a in self.accounts if a["id"] == path.split("/")[1])
+            return httpx.Response(200, json={"data": account})
+        if path.split("/")[0] in ("piggy-banks", "bills") and request.method == "PUT":
+            store = self.piggy_banks if path.startswith("piggy") else self.bills
+            item = next(i for i in store if i["id"] == path.split("/")[1])
+            item["attributes"].update(json.loads(request.content))
+            return httpx.Response(200, json={"data": item})
+        if path in ("categories", "webhooks", "piggy-banks", "bills"):
+            store = {"categories": self.categories, "webhooks": self.webhooks, "piggy-banks": self.piggy_banks,
+                     "bills": self.bills}[path]
             if request.method == "GET":
                 return httpx.Response(200, json={"data": store, "meta": {"pagination": {"total_pages": 1}}})
             body = json.loads(request.content)

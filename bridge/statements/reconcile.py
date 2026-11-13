@@ -6,6 +6,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from core.money import to_decimal_string
 from ingest import accounts, reconcile
 from ingest.models import BalanceObservation, LedgerEntry, ParsedTransaction, RawMessage, ReviewItem
 from ingest.parser import IST
@@ -64,13 +65,16 @@ def apply_statement(att, statement):
                 firefly_account_id=account.id, observed_at=_at(statement.period_end, 23), raw=head,
                 defaults={"balance_paise": balance},
             )
+        from wealth.apply import record_card_due
+
+        record_card_due(att, statement, account.id)
         start = dt.date.fromisoformat(settings.INGEST_LEDGER_START)
         counts = {"matched": 0, "added": 0, "review": 0, "before_start": 0}
         for index, line in enumerate(statement.lines):
             if line.date < start:
                 counts["before_start"] += 1
                 continue
-            raw = _raw(att, index, f"{line.date} {line.description} {line.amount_paise / 100:.2f} {line.direction}", _at(line.date))
+            raw = _raw(att, index, f"{line.date} {line.description} {to_decimal_string(line.amount_paise)} {line.direction}", _at(line.date))
             if raw.status != RawMessage.Status.RECEIVED:
                 continue  # already applied
             pt = PT.objects.create(

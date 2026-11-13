@@ -36,6 +36,12 @@ def describe(entry):
     return f"{prefix}{channel + ' ' if channel else ''}{who}"[:255]
 
 
+def _investment_target(entry):
+    from wealth.investments import is_investment_payee, mutual_fund_account_id
+
+    return mutual_fund_account_id() if is_investment_payee(entry.counterparty) else ""
+
+
 def build_payload(entry):
     raw_ids = sorted(entry.messages.values_list("raw_id", flat=True))
     sources = sorted(set(entry.messages.values_list("raw__source", flat=True)))
@@ -53,7 +59,13 @@ def build_payload(entry):
         tx["internal_reference"] = entry.reference
     if entry.category and entry.type != LedgerEntry.Type.TRANSFER:
         tx["category_name"] = entry.category  # Firefly creates it if missing
-    if entry.type == LedgerEntry.Type.WITHDRAWAL:
+    if entry.type == LedgerEntry.Type.WITHDRAWAL and not entry.is_reversal and _investment_target(entry):
+        # A SIP or fund purchase: own money moving into investments (rule: transfers are not expenses).
+        tx.update(type="transfer", source_id=entry.source_account_id, destination_id=_investment_target(entry),
+                  description=f"Investment: {entry.counterparty}"[:255])
+        tx.pop("category_name", None)
+        tx["tags"].append("investment")
+    elif entry.type == LedgerEntry.Type.WITHDRAWAL:
         tx["source_id"] = entry.source_account_id
         tx["destination_name"] = entry.counterparty or "Unknown payee"
     elif entry.type == LedgerEntry.Type.DEPOSIT:

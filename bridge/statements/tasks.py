@@ -60,9 +60,23 @@ def process_attachment(att_id):
         att.status, att.detail = S.NEEDS_PARSER, "no parser for this statement layout yet"
         att.save(update_fields=["status", "detail"])
         return att.status
+    from .parsers.common import Statement, StatementError
     from .reconcile import apply_statement
 
-    result = apply_statement(att, parser_fn(pages))
+    try:
+        document = parser_fn(pages)
+    except StatementError as exc:
+        # The layout was recognised but the figures did not add up: never apply a misread statement.
+        att.status, att.detail = S.NEEDS_PARSER, str(exc)[:300]
+        att.save(update_fields=["status", "detail"])
+        log.warning("statement %s refused: %s", att_id, exc)
+        return att.status
+    if isinstance(document, Statement):
+        result = apply_statement(att, document)
+    else:
+        from wealth.apply import apply_document
+
+        result = apply_document(att, document)
     att.status, att.detail = S.DONE, result[:300]
     att.save(update_fields=["status", "detail"])
     log.info("statement %s processed: %s", att_id, result)

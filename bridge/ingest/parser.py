@@ -97,8 +97,8 @@ def _load_profile(path):
     senders = data.get("senders")
     if not isinstance(pid, str) or not pid:
         raise ProfileError(f"{where}: id is required")
-    if account_kind not in ("bank", "card"):
-        raise ProfileError(f"{where}: account_kind must be bank or card")
+    if account_kind not in ("bank", "card", "document"):
+        raise ProfileError(f"{where}: account_kind must be bank, card or document")
     if not isinstance(senders, list) or not senders:
         raise ProfileError(f"{where}: senders must be a non-empty list of DLT headers")
     patterns = []
@@ -115,6 +115,9 @@ def _load_profile(path):
         if account_kind == "card" and "balance" in groups:
             # A card's "available limit" is not a balance and never an asset (rule 8).
             raise ProfileError(f"{pref}: card profiles may not capture a balance")
+        if account_kind == "document" and ptype not in ("ignore", "review"):
+            # Senders of documents only (CAS, credit report): their emails never become transactions.
+            raise ProfileError(f"{pref}: document profiles may only ignore or review")
         account_from_default = raw.get("account") == "default"
         if ptype == "transaction":
             # Some banks never name the account (e.g. one Federal Bank account); the owner then

@@ -1,0 +1,13 @@
+# Copy to goals.yaml (gitignored) and edit. Then:
+#   docker compose run --rm -T bridge python manage.py seed_goals - < goals.yaml
+# Each goal becomes a Firefly piggy bank. Its progress is the money in the listed accounts (up to the target),
+# refreshed daily. Use different accounts for different goals, or the same money counts twice.
+goals:
+  - name: Example purchase
+    target: "100000.00"          # quoted rupees
+    target_date: 2026-12-31
+    accounts: [Example Bank]     # Firefly asset account names
+  # An emergency fund sized from your own spending (average of the last 6 whole months):
+  # - name: Emergency fund
+  #   months_of_spend: 6
+  #   accounts: [Example Savings]

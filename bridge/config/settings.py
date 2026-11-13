@@ -2,6 +2,8 @@
 import os
 from pathlib import Path
 
+from celery.schedules import crontab
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -24,6 +26,7 @@ INSTALLED_APPS = [
     "mail",
     "statements",
     "llm",
+    "wealth",
 ]
 
 MIDDLEWARE = [
@@ -118,6 +121,14 @@ LLM_API_KEY = env("LLM_API_KEY", "")
 LLM_TIMEOUT_SECONDS = int(env("LLM_TIMEOUT_SECONDS", "120"))
 LLM_FALLBACK_ENABLED = env("LLM_FALLBACK_ENABLED", "1") == "1"
 
+# --- Goals, EMIs, investments, net worth (M5) ---
+# Debits to these payees are SIP or fund purchases: posted as a transfer into the mutual funds account
+# (once a CAS has created it), not as spending. Default written from the owner's real SMS ("MUTUAL FUNDS ICC").
+INVESTMENT_PAYEE_REGEX = env("INVESTMENT_PAYEE_REGEX", r"\bMUTUAL FUNDS?\b")
+INVESTMENT_ACCOUNTS = {"mutual_fund": "Mutual funds (CAS)", "stock": "Demat stocks (CAS)"}
+VALUATION_COUNTERPARTY = "Market value change"  # revenue/expense account for CAS revaluations
+EMERGENCY_FUND_LOOKBACK_MONTHS = 6
+
 CELERY_BROKER_URL = REDIS_URL or "memory://"
 CELERY_RESULT_BACKEND = REDIS_URL or "cache+memory://"
 CELERY_TIMEZONE = TIME_ZONE
@@ -127,6 +138,9 @@ CELERY_BEAT_SCHEDULE = {
     "ingest-sweep": {"task": "ingest.tasks.sweep", "schedule": 60.0},
     "gmail-poll": {"task": "mail.tasks.poll_all", "schedule": GMAIL_POLL_MINUTES * 60.0},
     "statements": {"task": "statements.tasks.process_pending", "schedule": 3600.0},
+    # 1st of each month, 06:00 IST: net worth snapshot of the month just ended. Daily 09:00: card dues check.
+    "networth-snapshot": {"task": "wealth.tasks.monthly_snapshot", "schedule": crontab(minute=0, hour=6, day_of_month=1)},
+    "card-dues": {"task": "wealth.tasks.check_dues", "schedule": crontab(minute=0, hour=9)},
 }
 
 # Log metadata only. Message bodies, account numbers and tokens are never logged.

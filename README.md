@@ -92,6 +92,20 @@ Bank profiles are written only from your real, masked SMS. None exist yet.
 - Statement passwords: `docker compose run --rm bridge python manage.py statement_password setup` (hidden prompt; each password is tested on real statements before it is saved, encrypted).
 - `docker compose run --rm bridge python manage.py statements_backfill --months 6` fetches older statement PDFs; `statement_status` lists them and their state. PDFs are kept as the bank sent them (locked) and opened only in memory.
 
+## Goals, EMIs, investments, net worth (M5)
+
+- Goals: `cp goals.example.yaml goals.yaml`, edit, then `docker compose run --rm -T bridge python manage.py seed_goals - < goals.yaml`. Each goal is a Firefly piggy bank whose progress is the money in its linked accounts.
+- EMI letters (Axis) and card statements are read automatically: EMIs become Firefly bills; card due dates are checked daily.
+- CDSL CAS: `docker compose run --rm bridge python manage.py statement_password setup cdsl` (PAN in capitals). Holdings are valued only as the CAS states them.
+- Net worth is snapshotted on the 1st of each month; `networth_snapshot --date YYYY-MM-DD` stores one by hand.
+
+| Endpoint | Returns |
+| --- | --- |
+| `GET /api/v1/networth` | Assets, liabilities and net worth now (each account with its balance status), plus month-end history |
+| `GET /api/v1/upcoming?days=30` | EMIs and card dues coming up, and dues that passed unpaid |
+| `GET /api/v1/goals` | Each goal's target, saved amount, and what is needed per month |
+| `GET /api/v1/holdings` | Investments from the latest CAS, with its date |
+
 ## Tests
 
 ```bash

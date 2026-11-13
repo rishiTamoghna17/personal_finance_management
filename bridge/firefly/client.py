@@ -1,7 +1,7 @@
 """Thin client for the Firefly III REST API (v1).
 
-Firefly is the ledger. This client only reads, and creates accounts for the
-one-off seed. Amounts cross this boundary as decimal strings, never floats.
+Firefly is the ledger. This client reads, and writes only ledger records (accounts, transactions, categories,
+goals, bills); nothing here can move money. Amounts cross this boundary as decimal strings, never floats.
 """
 import httpx
 from django.conf import settings
@@ -47,11 +47,15 @@ class FireflyClient:
     def about(self):
         return self._request("GET", "about")["data"]
 
-    def list_accounts(self, account_type):
-        """All accounts of a Firefly type filter ("asset", "liabilities", ...), across pages."""
+    def list_accounts(self, account_type, on_date=None):
+        """All accounts of a Firefly type filter ("asset", "liabilities", ...), across pages.
+        With on_date, current_balance is the balance at the end of that day."""
         accounts, page = [], 1
         while True:
-            body = self._request("GET", "accounts", params={"type": account_type, "page": page, "limit": 50})
+            params = {"type": account_type, "page": page, "limit": 50}
+            if on_date:
+                params["date"] = on_date.isoformat()
+            body = self._request("GET", "accounts", params=params)
             accounts.extend(body.get("data", []))
             pagination = body.get("meta", {}).get("pagination", {})
             if page >= int(pagination.get("total_pages", 1)):
@@ -92,3 +96,26 @@ class FireflyClient:
 
     def make_primary_currency(self, code):
         return self._request("POST", f"currencies/{code}/primary", json={})
+
+    # --- M5: balances on a date, goals (piggy banks), bills, spending totals ---
+    def get_account(self, account_id, on_date=None):
+        params = {"date": on_date.isoformat()} if on_date else None
+        return self._request("GET", f"accounts/{account_id}", params=params)["data"]
+
+    def create_piggy_bank(self, payload):
+        return self._request("POST", "piggy-banks", json=payload)["data"]
+
+    def update_piggy_bank(self, piggy_id, payload):
+        return self._request("PUT", f"piggy-banks/{piggy_id}", json=payload)["data"]
+
+    def create_bill(self, payload):
+        return self._request("POST", "bills", json=payload)["data"]
+
+    def update_bill(self, bill_id, payload):
+        return self._request("PUT", f"bills/{bill_id}", json=payload)["data"]
+
+    def expense_by_payee(self, start, end):
+        """[(expense account name, amount spent as a positive decimal string)] between two dates, INR only."""
+        body = self._request("GET", "insight/expense/expense", params={"start": start.isoformat(), "end": end.isoformat()})
+        rows = body if isinstance(body, list) else body.get("data", [])
+        return [(r.get("name", ""), str(r.get("difference", "0")).lstrip("-")) for r in rows if r.get("currency_code") == "INR"]

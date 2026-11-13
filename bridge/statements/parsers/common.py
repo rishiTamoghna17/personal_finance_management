@@ -62,3 +62,41 @@ def balance_chain(rows, opening):
         lines.append(Line(date, " ".join(description.split())[:200], amount, direction, ref.group(1) if ref else "", balance))
         previous = balance
     return lines
+
+
+# --- M5: documents that are not account statements ---
+@dataclass
+class Instalment:
+    number: int
+    date: dt.date
+    emi_paise: int
+    principal_paise: int
+    interest_paise: int
+
+
+@dataclass
+class EmiLetter:
+    """A card purchase converted to EMIs. The reference is kept only as its last 4 characters."""
+    account_digits: str
+    reference_tail: str
+    merchant: str
+    principal_paise: int
+    rate_text: str  # as printed, e.g. "1.50 % p.m."
+    instalments: list = field(default_factory=list)
+
+
+@dataclass
+class Holding:
+    kind: str  # mutual_fund | stock | other
+    isin: str
+    name: str
+    units: str  # decimal string as printed (units are not money, but never floats either)
+    price: str  # NAV or closing price as printed, decimal string
+    value_paise: int
+
+
+@dataclass
+class CasDocument:
+    statement_date: dt.date
+    holdings: list = field(default_factory=list)
+    total_paise: int = 0

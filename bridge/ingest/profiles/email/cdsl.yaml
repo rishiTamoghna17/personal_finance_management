@@ -1,0 +1,10 @@
+# CDSL consolidated account statement (CAS): all demat holdings and mutual funds, monthly, PDF locked with the PAN.
+# Written from the owner's real emails (2026-11-14). The PDF is read by the statement import (key: cdsl).
+id: cdsl-email
+account_kind: document
+senders: [cdslstatement.com]
+patterns:
+  - id: statement
+    type: ignore
+    reason: CAS email (its PDF is handled by the statement import)
+    match: 'Consolidated Account Statement'

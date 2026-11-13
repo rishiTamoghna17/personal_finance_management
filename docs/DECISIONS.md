@@ -4,6 +4,11 @@ Add one entry whenever a design choice is made or the spec changes. Newest first
 
 Format: date · decision · why · who approved
 
+- 2026-11-14 · Investments are Firefly asset accounts revalued to the monthly CAS value (tag `valuation`, counterparty "Market value change"); SIP debits are transfers into them · keeps Firefly's net worth complete without inventing prices (rule 9); no AMFI NAV feed · owner
+- 2026-11-14 · Groww Trade API not used · trading API (keys can place orders), stocks only, no current value on the free tier, daily token expiry · owner
+- 2026-11-14 · Card dues and EMI schedules live in the bridge; EMIs are also Firefly bills; card dues are not bills (amount changes monthly) · fixed EMI amounts suit bills, card dues do not · Claude, within M5
+- 2026-11-14 · Goal progress = money in the goal's linked accounts, refreshed daily · no manual piggy-bank entries to forget · Claude, within M5
+
 - 2026-11-13 · AI services (ollama, categoriser) run only on a Docker network with no internet route (`ai`, internal: true); the categoriser page is published through a local-only nginx forwarder on 127.0.0.1:3010 · after the categoriser sent requests to OpenAI despite OPENAI_BASE_URL (upstream bug), isolation must not depend on configuration · Claude, reported to owner
 
 - 2026-11-13 · Ollama runs as a Docker service (internal network only), not on the Mac; model qwen2.5:3b · owner asked not to install software on the PC; Docker's 7.7 GB memory and CPU-only inference suit a 3B model; the 7B needs more Docker memory · owner
