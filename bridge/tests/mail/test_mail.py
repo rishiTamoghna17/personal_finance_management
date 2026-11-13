@@ -129,3 +129,11 @@ def test_marketing_sub_domain_is_not_stored(account, firefly):
     msg = message("m9", "Festive offer", "Get cashback", sender="HDFC Bank <information@mailers.hdfcbank.bank.in>")
     assert tasks.ingest_message(account, msg) == "other_sender"
     assert RawMessage.objects.count() == 0
+
+
+def test_long_numbers_in_attachment_names_are_masked():
+    from mail.text import safe_filename
+
+    assert safe_filename("4400123456789012_17102026.pdf") == "XXXXXXXXXXXX9012_17102026.pdf"
+    assert safe_filename("Statement_2026MTH08_123456789.pdf") == "Statement_2026MTH08_XXXXX6789.pdf"
+    assert safe_filename("29OCT2026.pdf") == "29OCT2026.pdf"

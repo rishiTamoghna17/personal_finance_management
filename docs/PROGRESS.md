@@ -3,16 +3,16 @@
 Update this file at the start and end of every milestone. It is how a new session knows where things stand.
 
 ## Now
-- Approved milestone: M3 (approved 2026-11-13)
-- Status: M3 parts A (emails) and B (statement PDFs) built and running. Remaining before closing M3: owner's review; Firefly balance comparison once opening balances are filled.
-- Next step: owner answers the M3 questions; owner also fills opening balances in `accounts.yaml` and re-runs `seed_firefly` (not blocking M3).
+- Approved milestone: none (M3 finished 2026-11-13; M4 not planned yet)
+- Status: M1-M3 running: SMS from the phone, bank emails from two Gmail accounts, statement PDFs.
+- Next step: owner fills 1 Nov opening balances in `accounts.yaml` and re-runs `seed_firefly`; then plan M4 (AI categoriser, LLM fallback).
 
 ## Milestones
 | ID | Scope | Status | Approved on | Finished on |
 | --- | --- | --- | --- | --- |
 | M1 | Docker stack, Firefly, bridge skeleton, accounts | Finished | 2026-11-12 | 2026-11-12 |
 | M2 | SMS ingestion, OTP filter, profiles, reconciliation | Finished | 2026-11-12 | 2026-11-13 |
-| M3 | Gmail alerts, statement PDFs | In progress | 2026-11-13 | |
+| M3 | Gmail alerts, statement PDFs | Finished | 2026-11-13 | 2026-11-13 |
 | M4 | AI categoriser, LLM fallback | Not started | | |
 | M5 | Goals, EMI, net worth, CAS, credit report | Not started | | |
 | M6 | Telegram advisor | Not started | | |
@@ -199,6 +199,15 @@ Every pattern has a masked fixture (`bridge/tests/ingest/fixtures/`); a test enf
 - Rule 10: no code from pckt or indian-bank-sms-parser.
 - Secrets: `.env`, `accounts.yaml`, the SMS backup and the phone rule file are not in git.
 - Left for the owner, not code: opening balances in `accounts.yaml`.
+
+## M3 closing check (2026-11-13, by hand: /drift-review is not installed)
+- Rule 2: endpoints are health, accounts, ingest/sms, ingest/email, review; none moves money. Gmail access requests only `gmail.readonly`; a write attempt was refused by Google in testing.
+- Rule 3: SMS and email secret filters run before storage; logs carry ids and headers only; Celery tasks take ids only. Gmail tokens and statement passwords are stored only encrypted (checked in the database: no plain token or short password value).
+- Rule 4: no float in money code.
+- Statement PDFs stay locked on disk (checked: all 17 statements need a password; only HSBC's 3 information leaflets are unlocked); they are opened only in memory.
+- Found and fixed at closing: SBI Card and ICICI put a full card number or long customer ID in the PDF file name; file names are now masked to the last 4 digits when recorded, and the 11 existing records and files were renamed.
+- Secrets in git: none (`.env`, `accounts.yaml`, `secrets/`, client files, PDFs, mail cache all ignored).
+- Left for the owner: opening balances. Left for later: comparing statement closing balances with Firefly once balances are set; parsers for HSBC's first statement and the Axis EMI letter.
 
 ## M3 plan (presented and approved 2026-11-13)
 
