@@ -2,8 +2,15 @@
 # Only Firefly III and the bridge publish ports, and only on 127.0.0.1.
 # HTTPS and the reverse proxy arrive in M7.
 
+# Container logs are capped so a busy month cannot fill the disk (M7).
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
+
 x-bridge: &bridge
   build: ./bridge
+  # One image for bridge, worker and beat, so a rebuild always updates all three (before M7 each had its own copy).
+  image: personal-finance-bridge:local
   restart: unless-stopped
   environment: &bridge-env
     DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set in .env}
@@ -28,10 +35,20 @@ x-bridge: &bridge
     LLM_MODEL: ${LLM_MODEL:-qwen2.5:3b}
     LLM_OLLAMA_URL: ${LLM_OLLAMA_URL:-http://ollama:11434}
     LLM_API_KEY: ${LLM_API_KEY:-}
+    GOOGLE_OAUTH_TESTING: ${GOOGLE_OAUTH_TESTING:-1}
+    GDRIVE_CONNECTED_AT: ${GDRIVE_CONNECTED_AT:-}
+    PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+    GOOGLE_WEB_CLIENT_1_ID: ${GOOGLE_WEB_CLIENT_1_ID:-}
+    GOOGLE_WEB_CLIENT_1_SECRET: ${GOOGLE_WEB_CLIENT_1_SECRET:-}
+    GOOGLE_WEB_CLIENT_2_ID: ${GOOGLE_WEB_CLIENT_2_ID:-}
+    GOOGLE_WEB_CLIENT_2_SECRET: ${GOOGLE_WEB_CLIENT_2_SECRET:-}
     TZ: Asia/Kolkata
   networks: [internal, ai]
+  logging: *logging
   volumes:
     - bridge_data:/data
+    - backup_status:/backup-status:ro  # last backup result, for the health alert (M7)
+    - backup_secrets:/backup-secrets   # Drive sign-in renewed from the phone, handed to the backup job (M7)
   depends_on:
     postgres:
       condition: service_healthy
@@ -40,6 +57,7 @@ x-bridge: &bridge
 
 services:
   postgres:
+    logging: *logging
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
@@ -62,6 +80,7 @@ services:
       retries: 20
 
   redis:
+    logging: *logging
     image: redis:7-alpine
     restart: unless-stopped
     networks: [internal]
@@ -72,6 +91,7 @@ services:
       retries: 20
 
   firefly:
+    logging: *logging
     image: fireflyiii/core:version-6.7.9
     restart: unless-stopped
     stop_signal: SIGINT
@@ -101,6 +121,7 @@ services:
         condition: service_healthy
 
   firefly-cron:
+    logging: *logging
     image: alpine:3.22
     restart: unless-stopped
     init: true
@@ -121,8 +142,12 @@ services:
   # M4: local AI model server. Internal network only (no published port); models kept in the ollama_models volume.
   # Runs on the CPU (Docker on a Mac has no GPU), so a small model is used by default.
   ollama:
+    logging: *logging
     image: ollama/ollama:0.40.16
     restart: unless-stopped
+    environment:
+      # Keep the model loaded: answers come without the 1-minute load, and on Oracle the server never looks idle (M7).
+      OLLAMA_KEEP_ALIVE: "-1"
     volumes:
       - ollama_models:/root/.ollama
     # To download another model, attach it to `internal` for the download only (see README).
@@ -131,6 +156,7 @@ services:
   # M4: AI categoriser (FireflyIII-AI-Categorizer, AGPL-3.0), pinned by digest because only `latest` is published.
   # It has no login, so its settings page is published on 127.0.0.1 only. It talks to the ollama container.
   categorizer:
+    logging: *logging
     image: ghcr.io/ejagombar/fireflyiii-ai-categorizer@sha256:453e908c448fd406ce30a890108abd1f2b450c30ad86c39a3cbcb38326a8f0f7
     restart: unless-stopped
     environment:
@@ -150,6 +176,7 @@ services:
   # Publishes the categoriser's settings page on 127.0.0.1:3010 (3000 is taken by another program on this Mac).
   # Needed because Docker does not publish ports of a container that is only on an internet-less network.
   categorizer-ui:
+    logging: *logging
     image: nginx:1.27-alpine
     restart: unless-stopped
     volumes:
@@ -162,6 +189,7 @@ services:
   # M6: temporary local test chat page for the advisor, until the Phase 2 app exists. 127.0.0.1 only.
   # It adds the bridge token itself and passes only /api/v1/chat, /digest and /alerts.
   advisor-ui:
+    logging: *logging
     image: nginx:1.27-alpine
     restart: unless-stopped
     environment:
@@ -174,6 +202,26 @@ services:
       - "127.0.0.1:3020:80"
     networks: [internal]
     depends_on: [bridge]
+
+  # M7: private HTTPS for the phone (and later the app) through Tailscale, without installing anything on the host.
+  # https://finance.<tailnet>.ts.net -> bridge; :8443 -> the test chat page. Reachable only from your own Tailscale
+  # devices (serve, never funnel). Needs TS_AUTHKEY once (scripts/set-secret.sh TS_AUTHKEY); state kept in a volume.
+  tailscale:
+    image: tailscale/tailscale:v1.104.7
+    hostname: finance
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_HOSTNAME: finance
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"
+      TS_SERVE_CONFIG: /config/serve.json
+    volumes:
+      - tailscale_state:/var/lib/tailscale
+      - ./docker/tailscale/serve.json:/config/serve.json:ro
+    networks: [internal]
+    depends_on: [bridge, advisor-ui]
 
   bridge:
     <<: *bridge
@@ -191,12 +239,44 @@ services:
     <<: *bridge
     command: celery -A config beat --loglevel=INFO --schedule=/tmp/celerybeat-schedule
 
+  # M7: nightly encrypted backup (restic) of both databases, the bridge files and the categoriser settings,
+  # encrypted here and stored in Google Drive (drive.file access only). See docs/deployment.md.
+  backup:
+    build: ./docker/backup
+    image: personal-finance-backup:local
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      TZ: Asia/Kolkata
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      FIREFLY_DB_NAME: ${FIREFLY_DB_NAME:-firefly}
+      BRIDGE_DB_NAME: ${BRIDGE_DB_NAME:-bridge}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:?set in .env}
+      RESTIC_REPOSITORY: rclone:gdrive:personal-finance-backups
+      RCLONE_CONFIG_GDRIVE_TYPE: drive
+      RCLONE_CONFIG_GDRIVE_SCOPE: drive.file
+      RCLONE_CONFIG_GDRIVE_CLIENT_ID: ${GDRIVE_CLIENT_ID:-}
+      RCLONE_CONFIG_GDRIVE_CLIENT_SECRET: ${GDRIVE_CLIENT_SECRET:-}
+      RCLONE_CONFIG_GDRIVE_TOKEN: ${GDRIVE_TOKEN:-}
+    volumes:
+      - bridge_data:/backup/bridge_data:ro
+      - categorizer_data:/backup/categorizer_data:ro
+      - backup_status:/status
+      - backup_secrets:/secrets:ro
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   firefly_upload:
   bridge_data:
   categorizer_data:
   ollama_models:
+  backup_status:
+  tailscale_state:
+  backup_secrets:
 
 networks:
   internal:

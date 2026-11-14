@@ -73,7 +73,19 @@ def poll_account(account_id):
     if newest != account.last_seen_ms:
         GmailAccount.objects.filter(pk=account.pk).update(last_seen_ms=newest)
     log.info("gmail %s: %s", account.tag, counts)
+    from ingest.models import Heartbeat
+
+    Heartbeat.beat("gmail")
     return counts
+
+
+@shared_task
+def prepare_reconnect_links():
+    from . import reconnect
+
+    made = reconnect.prepare_links()
+    log.info("reconnect links prepared: %s", made)
+    return made
 
 
 @shared_task

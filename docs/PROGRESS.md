@@ -3,9 +3,9 @@
 Update this file at the start and end of every milestone. It is how a new session knows where things stand.
 
 ## Now
-- Approved milestone: none. M6 finished 2026-11-14. Next in the spec: M7 (deployment, backups, HTTPS); Phase 2 (APK) still needs the owner's approval.
+- M6 finished 2026-11-14. Approved milestone: M7 (approved 2026-11-14: Oracle Always Free with AI, Tailscale, encrypted backups to the Mac, Gmail apps to production). Backups changed to Google Drive at the owner's request (2026-11-14). Phase 2 (APK) still needs the owner's approval.
 - Status: M1-M6 running: SMS from the phone, bank emails from two Gmail accounts, statement PDFs, local AI categoriser and checked fallback reader.
-- Next step: plan M7 when the owner asks; owner also fills 1 Nov opening balances in `accounts.yaml` and categorises payees on http://127.0.0.1:3010 (neither blocking).
+- Next step: build M7 (code here first; Oracle, Tailscale and Google steps need the owner); owner also fills 1 Nov opening balances in `accounts.yaml` and categorises payees on http://127.0.0.1:3010 (neither blocking).
 
 ## Milestones
 | ID | Scope | Status | Approved on | Finished on |
@@ -16,7 +16,7 @@ Update this file at the start and end of every milestone. It is how a new sessio
 | M4 | AI categoriser, LLM fallback | Finished | 2026-11-13 | 2026-11-14 |
 | M5 | Goals, EMI, net worth, CAS, credit report | Finished (Experian reader left out) | 2026-11-14 | 2026-11-14 |
 | M6 | Advisor API (chat, digest, alerts) + temporary test chat | Finished | 2026-11-14 | 2026-11-14 |
-| M7 | Deployment, backups, HTTPS | Not started | | |
+| M7 | Deployment, backups, HTTPS | In progress | 2026-11-14 | |
 | P2 | Android APK | Not approved | | |
 
 ## M1 plan (presented 2026-11-12)
@@ -475,6 +475,60 @@ Important for the build: the SMS secret filter, applied to emails, flags far too
 - Ports: the test page is on 127.0.0.1:3020 only; the token is added by nginx and is not in the page.
 - Secrets in git: none.
 - 405 tests pass.
+
+## M7 plan (presented and approved 2026-11-14)
+
+### Checked before planning (2026-11-14)
+- **Oracle Always Free** (secondary sources, not Oracle's page): the free Arm allowance was halved in 2026 to **2 OCPU / 12 GB RAM** in total (enforcement date reported as June or 18 Aug 2026); Arm capacity is very often unavailable; sign-up needs a card; idle accounts may be reclaimed. The stack fits in 12 GB, but the 3B model would answer slower on 2 cores.
+- **Tailscale** free Personal plan: reported as up to 6 users with unlimited devices since April 2026, non-commercial use (to confirm on tailscale.com/pricing). Gives the phone a private, encrypted link to the server from anywhere, with a free HTTPS certificate (`tailscale serve`), and nothing published on the internet.
+- **Gmail tokens:** the Google sign-in apps are in "Testing", so refresh tokens expire every 7 days. Switching the consent screen to "In production" removes the 7-day limit (Google then shows an "unverified app" warning at sign-in, which the owner clicks through once); tokens then last while they are used.
+- **This Mac:** FileVault on (disk encrypted); Docker has 10 CPUs and 7.7 GB; the data is small (bridge files 10 MB).
+- **Other free hosting** (owner asked, 2026-11-14; comparison blogs, not providers' pages): Google Cloud e2-micro (1 GB RAM, 0.25 vCPU, US regions only) and AWS free tier (1 GB, 12-month or ended for new accounts) are too small for Firefly + Postgres + the bridge, let alone the model (the stack needs ~4-6 GB). Render, Koyeb, Railway and Fly.io have no always-on free container with a persistent disk (they sleep, expire databases after 30 days, or are short trials). Only Oracle Always Free can hold the whole stack for free; otherwise a machine at home (this Mac, an old laptop, a mini PC).
+
+### Scope
+1. **Where it runs** (owner's choice, question 1). Same Docker Compose stack either way; a `docs/deployment.md` guide for a fresh machine: install Docker, copy the repo, restore `.env` and a backup, start, check.
+2. **Remote access and HTTPS:** Tailscale on the server and on the phone. The bridge is served at `https://<machine>.<tailnet>.ts.net` with Tailscale's certificate; the SMS forwarder and the future app use that address. The plain-HTTP Wi-Fi port (`docker-compose.lan.yml`, 192.168.0.106:8000) is removed. Firefly, the categoriser page and the test chat page stay on 127.0.0.1 (reachable from other own devices only through Tailscale, if wanted).
+3. **Backups:** nightly at 02:30 IST, a `backup` container runs `pg_dump` of both databases plus the bridge files (statements as received) and the categoriser settings, encrypts them with **restic** (BSD-2, free) into a repository **outside the server** (question 3), keeps 14 daily, 8 weekly and 12 monthly copies, and checks the repository weekly. The backup password lives only in `.env` and in the owner's password manager. A restore drill is done once on a scratch stack and the steps are written down.
+4. **Secrets kept safe outside the server:** `.env` (with `BRIDGE_ENCRYPTION_KEY`, without which Gmail tokens and statement passwords cannot be read) is exported once, encrypted, for the owner to keep in a password manager. Not in git, not in the backup repository in plain form.
+5. **Raw message bodies encrypted at rest** (the M2 note): SMS and email bodies stored by the bridge are encrypted with `BRIDGE_ENCRYPTION_KEY`, decrypted only when parsed or shown in review; existing rows migrated. Disk encryption stays on (FileVault, or the VM's encrypted volume).
+6. **Gmail sign-in to production** for both Google projects (owner clicks in Google Cloud Console; one new sign-in each, read-only scope unchanged).
+7. **Keeping it healthy:** Docker log size limits; `restart: unless-stopped` already set; a health alert in `/api/v1/alerts` when the Gmail poll, the statement task or the last backup is older than expected, or the SMS forwarder has sent nothing for 2 days.
+8. **Tests:** body encryption round trip and migration; backup script on a test stack (dump, encrypt, restore, compare counts); new health alerts.
+
+### Cost
+All free (Tailscale Personal, restic, Oracle Always Free or a home machine). Nothing added that costs money; if Oracle asks for an upgrade, stop and ask.
+
+### Left out of M7
+- A public internet address (Cloudflare Tunnel or open ports): not needed with Tailscale, and it would expose the bridge to the internet.
+- The Android app (Phase 2).
+
+### Owner's answers (2026-11-14)
+- Approved: Oracle Always Free with AI; Tailscale; encrypted backups to this Mac; both Google sign-in apps to "In production". Every image already runs as arm64 on this Mac (checked), so the same stack runs on Oracle's Arm machines.
+- **Where:** Oracle Always Free (Arm, about 2 OCPU / 12 GB), AI kept (slower chat is fine). Measured on this Mac: the stack without AI uses ~0.75 GB; with the 3B model loaded ~4-4.5 GB at peak, so it fits.
+- Looked at and rejected: Hugging Face Spaces (sleeps, no safe persistent database, public app), Kaggle as a model backend (against its purpose, sends data out), splitting Oracle into two VMs (not needed).
+- **Idle reclamation** (owner's concern): Oracle stops (does not delete) an Always Free instance only if, over 7 days, CPU, network **and** memory (Arm shapes) are all below a threshold (reported 10-20%, 95th percentile; to confirm on Oracle's page). Plan: keep the model loaded permanently (`OLLAMA_KEEP_ALIVE=-1`, ~3 GB of 12 GB, about 25%), which keeps memory above the threshold for real use and removes the slow first answer; plus a health alert if the instance was stopped. No CPU-burning "keep busy" scripts. Optional, owner's choice: converting the account to Pay As You Go removes idle reclamation; Always Free resources stay free, but a card is then on file for anything beyond them, so a budget alert at Rs 1 would be set.
+
+### Questions for the owner
+1. **Where should it run?** (a) **This Mac, always on** (recommended for now: free, already works, fast enough for the model; the Mac must stay on and awake, and the phone reaches it through Tailscale when away from home); (b) **Oracle Always Free** (free if you can get Arm capacity; 2 cores make chat slower; needs a card at sign-up); (c) another always-on machine at home.
+2. **Tailscale** on the Mac and phone for access from anywhere? (Recommended. Without it the phone only reaches the bridge on home Wi-Fi, over plain HTTP.)
+3. **Where should encrypted backups go?** (a) an external drive plugged into the Mac; (b) a folder in iCloud Drive or Google Drive synced by the Mac (encrypted before it leaves); (c) Oracle Object Storage (if the server is on Oracle, backups would go to the Mac instead).
+4. OK to switch both Google sign-in apps to **"In production"** (one-time "unverified app" warning, no more weekly expiry)?
+
+### M7 progress (2026-11-14)
+- **Backups go to Google Drive** (owner's change during the build; the Mac backup store was started, never used, and removed). `backup` container: restic + rclone, Drive access `drive.file` only (sees only the files it creates). Nightly 02:30 IST plus hourly catch-up if the last success is older than 26 h; keeps 14 daily / 8 weekly / 12 monthly; weekly `restic check`. Encrypted before upload (`RESTIC_PASSWORD`, only in `.env`). One-time sign-in: `scripts/gdrive-connect.sh` (puts the token into `.env` without showing it). Owner enabled the Drive API and signed in (2026-11-14). First backup: snapshot ee2b5c6e, 10 MB, in the Drive folder `personal-finance-backups` (rclone lists only that folder: the token sees nothing else). **Restore drill passed**: latest snapshot restored from Drive into a throwaway PostgreSQL; bridge 72 messages / 13 entries and Firefly 21 transactions / 25 accounts match the live system; 24 bridge files restored; drill containers, volume and network removed afterwards.
+- **Message bodies encrypted at rest:** `EncryptedTextField` (Fernet, `BRIDGE_ENCRYPTION_KEY`), migration re-saved all 71 stored bodies (checked: 71 of 71 start with `enc1:`; review queue still reads them). A temporary pre-migration dump was deleted after the check.
+- **Bug found and fixed:** bridge, worker and beat each had their own image and only the bridge's was rebuilt, so the worker and beat ran 20-hour-old code and the M5 tasks (card dues, monthly net worth) were not registered. They now share one image (`personal-finance-bridge:local`); checked registered tasks; nothing was mis-posted meanwhile (1 entry posted, no investment payee).
+- **Health alerts** (`/api/v1/alerts`): background job stopped (posting 10 min, Gmail 60 min, statements 3 h, from `Heartbeat` rows), no SMS for 48 h, backup missing, failed or older than 36 h.
+- Docker logs capped (10 MB x 3 per service); Ollama keeps the model loaded (`OLLAMA_KEEP_ALIVE=-1`).
+- `scripts/export-secrets.sh` (one passphrase-encrypted file of `.env`, `accounts.yaml`, `goals.yaml`, `secrets/`), `scripts/restore-drill.sh` (latest backup into a throwaway PostgreSQL, counts compared, then deleted), `docs/deployment.md` (Oracle, Tailscale, restore, phone, checks).
+- Seen meanwhile: the Mac's Wi-Fi briefly dropped, so the bridge could not bind 192.168.0.106 for a few minutes; back on the same address. Tailscale on the server removes this dependence. The Wi-Fi binding stays on the Mac until the move.
+- 412 tests pass.
+- **Google apps stay in "Testing"** (owner's choice, 2026-11-14): publishing needs a public home page and privacy policy URL. Instead, `/api/v1/alerts` reminds from day 3 after each sign-in (medium; high on the last day and once expired), so reconnecting every 3-4 days keeps Gmail and Drive working; `scripts/google-reconnect.sh` renews all three sign-ins. Sign-in dates: `GmailAccount.connected_at` (backfilled from the first connection, 13 Nov), `GDRIVE_CONNECTED_AT` in `.env`. **Phase 2 note:** the app must show these alerts as phone notifications. `GOOGLE_OAUTH_TESTING=0` turns the reminders off if the apps are ever published.
+- **Review queue on the test page** (owner's request): "Review" lists open items in plain words with the message text and buttons (accept checked AI reading, pick the matching payment or "new payment", post as it is, read again, ignore / "I paid it"). The nginx forwarder passes only the review list and its four actions; other bridge routes stay blocked (checked: 404). Review items now carry `candidate_details` (amount, date, payee of each candidate).
+- **Tailscale in Docker** (`tailscale` service, image v1.104.7, userspace mode, state in a volume): `https://finance.<tailnet>.ts.net` -> bridge, `:8443` -> test chat page; serve only (never funnel). Nothing installed on the Mac. Live 2026-11-14: `https://finance.<tailnet>.ts.net` (certificate issued, tailnet only). The SMS phone (Tailscale app) now posts there; its Test arrived through the Tailscale container. The Wi-Fi binding (`docker-compose.lan.yml`, `COMPOSE_FILE`/`BRIDGE_LAN_IP`) is removed from `.env`: the bridge listens only on 127.0.0.1 and Tailscale (checked: 192.168.0.106:8000 closed). The single-use auth key was removed from `.env` after login.
+- **Tap-to-reconnect, server side** (owner's request): daily 08:00 Celery task makes a one-time link (24 h, single use, stored encrypted + hashed) for each Google sign-in 3+ days old; the reconnect alert carries it (`data.link`) for the app's notification. `/api/v1/google/connect/<token>` -> Google sign-in (PKCE, `prompt=consent`, same scopes only) -> `/api/v1/google/callback` saves the token encrypted, refuses a different Google account (SHA-256 of the address; stored now for both mailboxes) or wider scopes. A Drive reconnect is handed to the backup job through an owner-only file in the `backup_secrets` volume. Works only with an `https://` `PUBLIC_BASE_URL` (Tailscale) and a "Web application" OAuth client per Google project (redirect URI `<PUBLIC_BASE_URL>/api/v1/google/callback`). Live 2026-11-15: owner created both web clients (entered through hidden prompts); a test link for Gmail acct1 opened on the phone over Tailscale -> Google -> "Connected"; the renewed token then polled Gmail successfully. `reconnect_link <connection>` makes a link on demand.
+- 423 tests pass.
+- Waiting for the owner (to finish M7): `scripts/export-secrets.sh` into the password manager; Oracle sign-up and the move (docs/deployment.md). Earlier list, kept for reference: (the Drive and Gmail tokens of a Testing app expire after 7 days); `scripts/export-secrets.sh` into the password manager; Oracle sign-up; Tailscale on server and phone. Then the move in `docs/deployment.md`.
 
 ## Open questions for the owner
 - How many accounts at each bank (HDFC, SBI, ICICI, HSBC, AXIS), and savings, salary or current?

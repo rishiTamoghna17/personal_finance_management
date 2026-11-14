@@ -8,6 +8,10 @@ class GmailAccount(models.Model):
     address_hint = models.CharField(max_length=64, blank=True)  # e.g. "tam***@gmail.com"
     token_encrypted = models.TextField()
     last_seen_ms = models.BigIntegerField(default=0)  # newest message already read
+    # When the owner last signed in. A Google app in "Testing" loses its tokens 7 days after sign-in (M7 reminder).
+    connected_at = models.DateTimeField(null=True, blank=True)
+    # SHA-256 of the Google address, to make sure a reconnect signs in to the same mailbox (never stored in clear).
+    email_hash = models.CharField(max_length=64, blank=True)
     enabled = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -46,3 +50,27 @@ class StatementAttachment(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["gmail_message_id", "filename"], name="statement_attachment_unique"),
         ]
+
+
+class GoogleCredential(models.Model):
+    """A Google sign-in that is not a Gmail account: today only "drive" (encrypted backups)."""
+
+    name = models.SlugField(max_length=32, unique=True)
+    token_encrypted = models.TextField()
+    client = models.CharField(max_length=8)  # which web client (Google project) issued it
+    email_hash = models.CharField(max_length=64, blank=True)
+    connected_at = models.DateTimeField()
+
+
+class ReconnectLink(models.Model):
+    """A one-time link that lets the owner renew a Google sign-in from the phone. Valid 24 hours, single use.
+    The link token is stored encrypted (to show it in the alert) and hashed (to look it up)."""
+
+    connection = models.CharField(max_length=40, db_index=True)  # "gmail:acct1" | "gmail:acct2" | "drive"
+    token_hash = models.CharField(max_length=64, unique=True)
+    token_encrypted = models.TextField()
+    oauth_state = models.CharField(max_length=64, blank=True, db_index=True)
+    code_verifier = models.TextField(blank=True)  # PKCE, encrypted
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)

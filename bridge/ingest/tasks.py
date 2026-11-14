@@ -129,4 +129,7 @@ def sweep():
         "pk", flat=True
     ):
         process_raw.delay(raw_id)
+    from .models import Heartbeat
+
+    Heartbeat.beat("sweep")
     return {"queued_posts": posted, "unpaired": flagged}

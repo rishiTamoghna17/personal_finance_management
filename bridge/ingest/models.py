@@ -3,6 +3,8 @@ import uuid
 
 from django.db import models
 
+from core.fields import EncryptedTextField
+
 
 class RawMessage(models.Model):
     """Every message that passed the OTP filter, exactly as received."""
@@ -22,7 +24,7 @@ class RawMessage(models.Model):
     source = models.CharField(max_length=8, choices=Source.choices)
     sender = models.CharField(max_length=255)
     header = models.CharField(max_length=128, db_index=True)
-    body = models.TextField()
+    body = EncryptedTextField()  # encrypted at rest (M7); decrypted only when read by the bridge
     sent_at = models.DateTimeField()
     received_at = models.DateTimeField(null=True, blank=True)
     content_hash = models.CharField(max_length=64, unique=True)
@@ -150,3 +152,16 @@ class DropTally(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["header", "day"], name="drop_tally_header_day")]
+
+
+class Heartbeat(models.Model):
+    """When a background job last finished (M7). Only job names and times; nothing else."""
+
+    name = models.CharField(max_length=32, unique=True)
+    at = models.DateTimeField()
+
+    @classmethod
+    def beat(cls, name):
+        from django.utils import timezone
+
+        cls.objects.update_or_create(name=name, defaults={"at": timezone.now()})

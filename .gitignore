@@ -25,3 +25,6 @@ secrets/
 
 # Google OAuth client files downloaded straight into the project
 client_secret_*.json
+
+# Encrypted secrets export (scripts/export-secrets.sh)
+finance-secrets-*.enc

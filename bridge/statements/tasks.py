@@ -89,3 +89,6 @@ def process_pending():
     waiting = StatementAttachment.objects.filter(status__in=[S.PENDING, S.DOWNLOADED, S.NEEDS_PASSWORD])
     for att_id in waiting.values_list("pk", flat=True):
         process_attachment.delay(att_id)
+    from ingest.models import Heartbeat
+
+    Heartbeat.beat("statements")

@@ -117,6 +117,16 @@ class IngestEmailView(APIView):
         return Response({"status": "accepted", "id": raw.pk}, status=202)
 
 
+def _candidate_details(ids):
+    """What each candidate payment is, so a person can pick one without looking it up."""
+    out = []
+    for entry in LedgerEntry.objects.filter(pk__in=ids or []):
+        out.append({"id": entry.pk, "type": entry.type, "amount_paise": entry.amount_paise,
+                    "occurred_at": entry.occurred_at.isoformat(), "counterparty": entry.counterparty,
+                    "status": entry.status})
+    return out
+
+
 def _review_json(item):
     raw = item.raw
     return {
@@ -126,6 +136,7 @@ def _review_json(item):
         "status": item.status,
         "created_at": item.created_at.isoformat(),
         "candidates": item.candidates,
+        "candidate_details": _candidate_details(item.candidates),
         "suggestion": item.suggestion,
         "entry_id": item.entry_id,
         "message": None if raw is None else {

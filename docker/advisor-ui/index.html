@@ -22,6 +22,11 @@
   .meta { font-size:12px; color:var(--muted); margin-top:4px; }
   .warn { color:var(--warn); }
   form { display:flex; gap:8px; position:sticky; bottom:0; background:var(--bg); padding:8px 0 4px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
+  .card .why { font-weight:600; }
+  .card .text { white-space:pre-wrap; font-size:13px; color:var(--muted); max-height:9em; overflow:auto; }
+  .card .actions { display:flex; gap:6px; flex-wrap:wrap; }
+  .card.done { opacity:.55; }
   textarea { flex:1; font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--text); resize:none; }
 </style>
 </head>
@@ -29,7 +34,7 @@
 <main>
   <header>
     <div><h1>Money advisor</h1><div class="note">Temporary test page on this Mac. Answers come from your ledger through the local model; nothing leaves this computer.</div></div>
-    <div><button id="digest">Weekly digest</button> <button id="alerts">Alerts</button> <button id="clear">Clear</button></div>
+    <div><button id="digest">Weekly digest</button> <button id="alerts">Alerts</button> <button id="review">Review</button> <button id="clear">Clear</button></div>
   </header>
   <div id="log"></div>
   <form id="f">
@@ -72,6 +77,48 @@ document.getElementById('alerts').onclick = async () => {
   try { const d = await call('/api/v1/alerts');
         add(d.alerts.length ? d.alerts.map(a => '• [' + a.severity + '] ' + a.message).join('\n') : 'No alerts.', false, 'Alerts (fixed rules)'); }
   catch (e) { add('Error: ' + e.message, false, null, true); }
+};
+const REASONS = {
+  unknown_sender: 'From a sender no bank profile knows', unparsed: 'A bank message I could not read',
+  unknown_account: 'Account digits not in your accounts', ambiguous_match: 'Could be one of several payments',
+  transfer_already_posted: 'Second half of a transfer that was already recorded',
+  unpaired_transfer: 'Only one side of a transfer or card payment arrived', post_failed: 'Firefly refused this payment',
+  card_due_unpaid: 'Card bill due date passed without the minimum paid'};
+const rupees = p => '₹' + (p / 100).toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+function button(label, fn) { const b = document.createElement('button'); b.textContent = label; b.onclick = fn; return b; }
+async function act(card, id, action, body) {
+  card.querySelectorAll('button').forEach(b => b.disabled = true);
+  try {
+    await call('/api/v1/review/' + id + '/' + action, {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                                     body: JSON.stringify(body || {})});
+    card.classList.add('done'); card.querySelector('.actions').textContent = 'Done: ' + action;
+  } catch (e) { card.querySelector('.actions').append(' Error: ' + e.message); card.querySelectorAll('button').forEach(b => b.disabled = false); }
+}
+document.getElementById('review').onclick = async () => {
+  let d; try { d = await call('/api/v1/review'); } catch (e) { add('Error: ' + e.message, false, null, true); return; }
+  if (!d.items.length) { add('The review queue is empty.', false, 'Review'); return; }
+  add(d.items.length + ' item' + (d.items.length > 1 ? 's' : '') + ' need you:', false, 'Review queue');
+  for (const it of d.items) {
+    const card = document.createElement('div'); card.className = 'card';
+    const why = document.createElement('div'); why.className = 'why';
+    why.textContent = (REASONS[it.reason] || it.reason) + (it.detail ? ' (' + it.detail + ')' : '');
+    card.append(why);
+    if (it.message) { const t = document.createElement('div'); t.className = 'text';
+      t.textContent = it.message.sender + ' · ' + it.message.sent_at.slice(0, 16).replace('T', ' ') + '\n' + it.message.text; card.append(t); }
+    const s = it.suggestion || {};
+    if (s.status === 'ok') { const g = document.createElement('div');
+      g.textContent = 'AI reading (checked): ' + s.direction + ' ' + rupees(s.amount_paise) + ' on account ' + s.account_last4 + (s.counterparty ? ', ' + s.counterparty : ''); card.append(g); }
+    const a = document.createElement('div'); a.className = 'actions'; card.append(a);
+    if (s.status === 'ok') a.append(button('Accept AI reading', () => act(card, it.id, 'accept')));
+    if (it.reason === 'ambiguous_match') {
+      for (const c of it.candidate_details) a.append(button('Same as ' + rupees(c.amount_paise) + ' ' + c.occurred_at.slice(0, 10) + ' ' + (c.counterparty || ''), () => act(card, it.id, 'resolve', {entry_id: c.id})));
+      a.append(button('It is a new payment', () => act(card, it.id, 'resolve', {entry_id: null})));
+    }
+    if (it.reason === 'unpaired_transfer' || it.reason === 'post_failed') a.append(button('Post it as it is', () => act(card, it.id, 'resolve', {post: true})));
+    if (it.message && ['unknown_sender', 'unparsed', 'unknown_account'].includes(it.reason)) a.append(button('Read again', () => act(card, it.id, 'reparse')));
+    a.append(button(it.reason === 'card_due_unpaid' ? 'I paid it, dismiss' : 'Ignore (not a payment)', () => act(card, it.id, 'ignore')));
+    log.appendChild(card); card.scrollIntoView({behavior: 'smooth', block: 'end'});
+  }
 };
 document.getElementById('clear').onclick = () => { history = []; log.innerHTML = ''; };
 </script>

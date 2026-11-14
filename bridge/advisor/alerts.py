@@ -94,5 +94,8 @@ def build(today=None, client=None):
         alerts.append({"type": "investments_stale", "severity": "low",
                        "message": f"Investment values are from {cas.statement_date:%d %b %Y}; the newer CDSL statement "
                                   f"has not been read yet.", "data": {"statement_date": cas.statement_date.isoformat()}})
+    from .health import checks
+
+    alerts += checks()
     order = {"high": 0, "medium": 1, "low": 2}
     return sorted(alerts, key=lambda a: order[a["severity"]])

@@ -44,7 +44,10 @@ class Command(BaseCommand):
             raise CommandError("token has no refresh token; sign in again")
         from mail.gmail import service_for
 
-        account, _ = GmailAccount.objects.update_or_create(tag=tag, defaults={"token_encrypted": encrypt(json.dumps(info))})
+        from django.utils import timezone
+
+        account, _ = GmailAccount.objects.update_or_create(
+            tag=tag, defaults={"token_encrypted": encrypt(json.dumps(info)), "connected_at": timezone.now()})
         address = service_for(account).users().getProfile(userId="me").execute()["emailAddress"]
         account.address_hint = address[:3] + "***@" + address.split("@")[1]
         account.save(update_fields=["address_hint"])

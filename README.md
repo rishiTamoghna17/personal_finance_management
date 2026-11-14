@@ -113,6 +113,13 @@ Ask questions about your money in plain words. Answers are written by the local 
 - Test page (until the Android app): http://127.0.0.1:3020, this Mac only.
 - `POST /api/v1/chat` `{"message": "...", "history": [...]}`, `GET /api/v1/digest?week=2026-W46`, `GET /api/v1/alerts`.
 
+## Operations (M7)
+
+- Private HTTPS: `https://finance.<tailnet>.ts.net` through the `tailscale` container (your Tailscale devices only).
+- Backups: nightly, encrypted, to Google Drive (`personal-finance-backups`); `sh scripts/restore-drill.sh` tests a restore.
+- Google sign-ins renew from the phone with the link in the reminder alert, or `sh scripts/google-reconnect.sh`.
+- Move to a server: [docs/deployment.md](docs/deployment.md).
+
 ## Tests
 
 ```bash

@@ -4,6 +4,12 @@ Add one entry whenever a design choice is made or the spec changes. Newest first
 
 Format: date · decision · why · who approved
 
+- 2026-11-14 · Google sign-in apps stay in "Testing"; reconnect reminders from day 3 through /api/v1/alerts (to become phone notifications in the Phase 2 app) · publishing needs a public home page and privacy policy, which the owner did not want · owner
+
+- 2026-11-14 · Backups: restic, encrypted on the server, stored in Google Drive with `drive.file` access only · owner wants them in Drive; Drive only sees encrypted data and only the backup folder · owner
+- 2026-11-14 · Stored SMS/email bodies encrypted at rest with BRIDGE_ENCRYPTION_KEY · a database copy or backup should not reveal message text (M2 note) · Claude, within M7
+- 2026-11-14 · M7 hosting: Oracle Always Free Arm with the local AI kept loaded; Tailscale for private HTTPS · free, always on; keeping the model loaded is real use and keeps the instance from being reclaimed as idle · owner
+
 - 2026-11-14 · Spec change: no Telegram. The advisor (chat, digest, alerts) is a bridge API used by the Phase 2 app's chat screen; a temporary local test chat page is used until then. M6 renamed "Advisor API" · owner wants one chatbot in the APK, not Telegram · owner ("yes" to the proposed spec change)
 
 - 2026-11-14 · Investments are Firefly asset accounts revalued to the monthly CAS value (tag `valuation`, counterparty "Market value change"); SIP debits are transfers into them · keeps Firefly's net worth complete without inventing prices (rule 9); no AMFI NAV feed · owner

@@ -130,6 +130,31 @@ INVESTMENT_ACCOUNTS = {"mutual_fund": "Mutual funds (CAS)", "stock": "Demat stoc
 VALUATION_COUNTERPARTY = "Market value change"  # revenue/expense account for CAS revaluations
 EMERGENCY_FUND_LOOKBACK_MONTHS = 6
 
+# --- Operations (M7) ---
+BACKUP_STATUS_FILE = env("BACKUP_STATUS_FILE", "/backup-status/last.json")  # written by the backup container
+# The Google sign-in apps stay in "Testing" (owner's choice, 2026-11-14): tokens expire 7 days after sign-in, so the
+# advisor reminds the owner to reconnect from day 3. Set GOOGLE_OAUTH_TESTING=0 if the apps are ever published.
+GOOGLE_OAUTH_TESTING = env("GOOGLE_OAUTH_TESTING", "1") == "1"
+GDRIVE_CONNECTED_AT = env("GDRIVE_CONNECTED_AT", "")  # written by scripts/gdrive-connect.sh
+
+# Tap-to-reconnect from the phone (M7). Needs the private HTTPS address (Tailscale) and a "Web application" OAuth
+# client in each Google project whose redirect URI is <PUBLIC_BASE_URL>/api/v1/google/callback.
+PUBLIC_BASE_URL = env("PUBLIC_BASE_URL", "").rstrip("/")  # e.g. https://finance.tail1234.ts.net
+GOOGLE_WEB_CLIENTS = {
+    "1": (env("GOOGLE_WEB_CLIENT_1_ID", ""), env("GOOGLE_WEB_CLIENT_1_SECRET", "")),
+    "2": (env("GOOGLE_WEB_CLIENT_2_ID", ""), env("GOOGLE_WEB_CLIENT_2_SECRET", "")),
+}
+# Which client (Google project) each connection uses: Gmail accounts by tag, and "drive" for the backups.
+GOOGLE_CONNECTION_CLIENT = dict(
+    pair.strip().split("=", 1) for pair in env("GOOGLE_CONNECTION_CLIENT", "acct1=1,acct2=2,drive=1").split(",") if "=" in pair
+)
+RECONNECT_LINK_HOURS = 24
+BACKUP_SECRETS_DIR = Path(env("BACKUP_SECRETS_DIR", "/backup-secrets"))  # Drive sign-in handed to the backup job
+if PUBLIC_BASE_URL:
+    from urllib.parse import urlparse as _urlparse
+
+    ALLOWED_HOSTS.append(_urlparse(PUBLIC_BASE_URL).hostname or "")
+
 CELERY_BROKER_URL = REDIS_URL or "memory://"
 CELERY_RESULT_BACKEND = REDIS_URL or "cache+memory://"
 CELERY_TIMEZONE = TIME_ZONE
@@ -142,6 +167,8 @@ CELERY_BEAT_SCHEDULE = {
     # 1st of each month, 06:00 IST: net worth snapshot of the month just ended. Daily 09:00: card dues check.
     "networth-snapshot": {"task": "wealth.tasks.monthly_snapshot", "schedule": crontab(minute=0, hour=6, day_of_month=1)},
     "card-dues": {"task": "wealth.tasks.check_dues", "schedule": crontab(minute=0, hour=9)},
+    # 08:00 IST: one-time "reconnect Google" links for sign-ins that are 3+ days old (M7).
+    "reconnect-links": {"task": "mail.tasks.prepare_reconnect_links", "schedule": crontab(minute=0, hour=8)},
 }
 
 # Log metadata only. Message bodies, account numbers and tokens are never logged.
