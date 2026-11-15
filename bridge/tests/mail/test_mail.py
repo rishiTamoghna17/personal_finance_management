@@ -1,3 +1,4 @@
+from cryptography.fernet import Fernet
 import base64
 import datetime as dt
 import json
@@ -37,7 +38,7 @@ def account():
 def test_encryption_round_trip_and_wrong_key(settings):
     token = encrypt("secret value")
     assert "secret value" not in token and decrypt(token) == "secret value"
-    settings.BRIDGE_ENCRYPTION_KEY = "Sxl2B7oVJ7bq3cR0dFQhC9mWm7bP0xYk8dV2nH5u4tA="
+    settings.BRIDGE_ENCRYPTION_KEY = Fernet.generate_key().decode()
     with pytest.raises(CryptoError):
         decrypt(token)
 

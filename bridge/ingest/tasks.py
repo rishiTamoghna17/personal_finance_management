@@ -133,3 +133,11 @@ def sweep():
 
     Heartbeat.beat("sweep")
     return {"queued_posts": posted, "unpaired": flagged}
+
+
+@shared_task
+def check_categories():
+    """Every 5 minutes: ask the owner about posted payments that still have no category."""
+    from . import categorise
+
+    return categorise.check()

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from cryptography.fernet import Fernet
 from django.core.cache import cache
 
 from config import celery_app
@@ -13,6 +14,7 @@ celery_app.conf.task_eager_propagates = True
 
 TEST_PROFILES = Path(__file__).parent / "ingest" / "profiles"
 HMAC_SECRET = "test-hmac-secret"
+TEST_ENCRYPTION_KEY = Fernet.generate_key().decode()  # made per test run; never a real key
 
 
 @pytest.fixture(autouse=True)
@@ -26,7 +28,7 @@ def _settings(settings):
     settings.INGEST_SETTLE_SECONDS = 0
     settings.INGEST_DEFAULT_ACCOUNTS = {}  # tests never depend on the owner's .env
     settings.INGEST_EMAIL_PROFILE_DIRS = [settings.BASE_DIR / "ingest" / "profiles" / "email"]
-    settings.BRIDGE_ENCRYPTION_KEY = "jLbH5d5mF0eQ2m7O6l8kYJk9oQx3VtQGZ7m9c1fL3uU="
+    settings.BRIDGE_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY
     settings.GMAIL_REQUEST_PAUSE_SECONDS = 0
     settings.LLM_FALLBACK_ENABLED = False  # LLM tests switch it on with a mocked model
     settings.LLM_PROVIDER = "ollama"

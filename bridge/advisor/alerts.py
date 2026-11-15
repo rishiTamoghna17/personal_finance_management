@@ -84,7 +84,11 @@ def build(today=None, client=None):
                            "message": f"{what} of {inr(item['amount_paise'])} due on {item['date']}.", "data": item})
     alerts += category_spikes(today, client)
     alerts += goals_behind(today, client)
-    open_items = ReviewItem.objects.filter(status=ReviewItem.Status.OPEN).count()
+    from ingest import categorise
+
+    alerts += categorise.alerts()
+    open_items = ReviewItem.objects.filter(status=ReviewItem.Status.OPEN).exclude(
+        reason=ReviewItem.Reason.CATEGORY_NEEDED).count()  # category questions have their own alerts
     if open_items:
         alerts.append({"type": "review_waiting", "severity": "low",
                        "message": f"{open_items} item{'s' if open_items != 1 else ''} waiting in the review queue.",

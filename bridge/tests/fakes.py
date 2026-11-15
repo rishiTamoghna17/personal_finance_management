@@ -14,6 +14,9 @@ class FakeFirefly:
         self.webhooks = []
         self.piggy_banks = []
         self.bills = []
+        self.groups = []  # stored transaction groups readable through GET transactions (category checks)
+        self.rule_groups = []
+        self.rules = []
         self.expenses = []  # [(payee name, "123.45")] returned by insight/expense/expense
         # Other insight paths: {"expense/category": fn(start, end) -> [(name, "123.45")], ...}
         self.insights = {}
@@ -25,6 +28,13 @@ class FakeFirefly:
         attributes.setdefault("current_balance", "0.000000000000")
         attributes.setdefault("currency_code", "INR")
         self.accounts.append({"id": str(len(self.accounts) + 1), "type": "accounts", "attributes": attributes})
+
+    def add_withdrawal(self, payee, amount, category=None, tags=None, date="2026-11-10T10:00:00+05:30"):
+        gid = str(len(self.groups) + 1)
+        self.groups.append({"id": gid, "attributes": {"transactions": [{
+            "transaction_journal_id": str(100 + int(gid)), "type": "withdrawal", "amount": amount, "date": date,
+            "source_name": "HDFC Bank", "destination_name": payee, "category_name": category, "tags": tags or []}]}})
+        return gid
 
     def handler(self, request):
         path = request.url.path.removeprefix("/api/v1/")
@@ -74,6 +84,27 @@ class FakeFirefly:
             item = next(c for c in self.categories if c["id"] == path.split("/")[1])
             item["attributes"].update(json.loads(request.content))
             return httpx.Response(200, json={"data": item})
+        if request.method == "GET" and path == "transactions":
+            return httpx.Response(200, json={"data": self.groups, "meta": {"pagination": {"total_pages": 1}}})
+        if path.startswith("transactions/"):
+            group = next(g for g in self.groups if g["id"] == path.split("/")[1])
+            if request.method == "PUT":
+                body = json.loads(request.content)
+                for change in body["transactions"]:
+                    split = next(t for t in group["attributes"]["transactions"]
+                                 if t["transaction_journal_id"] == change["transaction_journal_id"])
+                    split.update({k: v for k, v in change.items() if k != "transaction_journal_id"})
+            return httpx.Response(200, json={"data": group})
+        if path in ("rule-groups", "rules"):
+            store = self.rule_groups if path == "rule-groups" else self.rules
+            if request.method == "GET":
+                return httpx.Response(200, json={"data": store, "meta": {"pagination": {"total_pages": 1}}})
+            store.append({"id": str(len(store) + 1), "attributes": json.loads(request.content)})
+            return httpx.Response(200, json={"data": store[-1]})
+        if request.method == "PUT" and path.startswith("rules/"):
+            rule = next(r for r in self.rules if r["id"] == path.split("/")[1])
+            rule["attributes"].update(json.loads(request.content))
+            return httpx.Response(200, json={"data": rule})
         if request.method == "POST" and path == "transactions":
             body = json.loads(request.content)
             self.transactions.append(body)

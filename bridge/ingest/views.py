@@ -164,7 +164,8 @@ class ReviewActionView(APIView):
         item = get_object_or_404(ReviewItem, pk=pk)
         if item.status != ReviewItem.Status.OPEN:
             return Response({"detail": "already closed"}, status=409)
-        handler = {"ignore": self._ignore, "reparse": self._reparse, "resolve": self._resolve, "accept": self._accept}.get(action)
+        handler = {"ignore": self._ignore, "reparse": self._reparse, "resolve": self._resolve, "accept": self._accept,
+                   "category": self._category}.get(action)
         if handler is None:
             return Response({"detail": "unknown action"}, status=404)
         return handler(request, item)
@@ -220,6 +221,20 @@ class ReviewActionView(APIView):
             reconcile._reconcile(pt)
             self._close(item, ReviewItem.Status.RESOLVED, "accepted AI suggestion")
         return Response(_review_json(item))
+
+    def _category(self, request, item):
+        """Body: {"category": "<one of the Firefly categories>", "always": true|false}."""
+        from . import categorise
+
+        name, always = request.data.get("category"), request.data.get("always", False)
+        if not isinstance(name, str) or not isinstance(always, bool):
+            return Response({"detail": "category (text) is required; always must be true or false"}, status=400)
+        try:
+            result = categorise.choose(item, name, always)
+        except categorise.CategoryError as exc:
+            return Response({"detail": str(exc)}, status=400)
+        item.refresh_from_db()
+        return Response({"item": _review_json(item), **result})
 
     def _resolve(self, request, item):
         """Body for ambiguous_match: {"entry_id": N} to merge, or {"entry_id": null} for a new payment.

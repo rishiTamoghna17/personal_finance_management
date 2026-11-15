@@ -9,7 +9,7 @@ from mail import reconnect
 from mail.models import GmailAccount, GoogleCredential, ReconnectLink
 
 pytestmark = pytest.mark.django_db
-NOW = dt.datetime(2026, 11, 14, 12, 0, tzinfo=dt.timezone.utc)
+NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)  # links are checked against the real clock
 
 
 @pytest.fixture

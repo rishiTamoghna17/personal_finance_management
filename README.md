@@ -67,10 +67,11 @@ Every request needs `Authorization: Bearer <BRIDGE_API_TOKEN>`. Nothing in the A
 | `GET /api/v1/health` | Status of the database, cache and Firefly connection. 503 if any is down. |
 | `GET /api/v1/accounts` | Your accounts, cards and loans from Firefly. Balances are integer paise. `balance_status` is `confirmed` when the bank reported a balance in the last 72 hours, `stale` when that report is older, and `calculated` when only Firefly's ledger sum is known. Account numbers are cut to `last4`. |
 | `POST /api/v1/ingest/sms` | Bank SMS from the phone. Also needs an `X-Signature` HMAC header. See [docs/sms-forwarder.md](docs/sms-forwarder.md). |
-| `GET /api/v1/review` | Messages and payments that need you: unknown sender, unparsed, unknown account, ambiguous match, unpaired transfer, failed post. `?status=all` shows closed items too. |
+| `GET /api/v1/review` | Messages and payments that need you: unknown sender, unparsed, unknown account, ambiguous match, unpaired transfer, failed post, payment without a category. `?status=all` shows closed items too. |
 | `POST /api/v1/review/<id>/ignore` | Close an item; its message is kept, marked ignored. |
 | `POST /api/v1/review/<id>/reparse` | Parse the message again, e.g. after a bank profile was added. |
 | `POST /api/v1/review/<id>/resolve` | Ambiguous match: `{"entry_id": <candidate>}` to merge or `{"entry_id": null}` for a new payment. Unpaired transfer or failed post: `{"post": true}` to post as it is. |
+| `POST /api/v1/review/<id>/category` | Payment without a category: `{"category": "<Firefly category>", "always": true}` sets it in Firefly; `always` also adds a Firefly rule for that payee. |
 
 Limits: 120 requests a minute with a token, 20 without, 256 KiB per request.
 

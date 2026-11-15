@@ -83,7 +83,8 @@ const REASONS = {
   unknown_account: 'Account digits not in your accounts', ambiguous_match: 'Could be one of several payments',
   transfer_already_posted: 'Second half of a transfer that was already recorded',
   unpaired_transfer: 'Only one side of a transfer or card payment arrived', post_failed: 'Firefly refused this payment',
-  card_due_unpaid: 'Card bill due date passed without the minimum paid'};
+  card_due_unpaid: 'Card bill due date passed without the minimum paid',
+  category_needed: 'Payment without a category: pick one'};
 const rupees = p => '₹' + (p / 100).toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 function button(label, fn) { const b = document.createElement('button'); b.textContent = label; b.onclick = fn; return b; }
 async function act(card, id, action, body) {
@@ -93,6 +94,13 @@ async function act(card, id, action, body) {
                                                      body: JSON.stringify(body || {})});
     card.classList.add('done'); card.querySelector('.actions').textContent = 'Done: ' + action;
   } catch (e) { card.querySelector('.actions').append(' Error: ' + e.message); card.querySelectorAll('button').forEach(b => b.disabled = false); }
+}
+let _categories = null;
+async function categoryNames() {
+  if (_categories) return _categories;
+  try { const d = await call('/api/v1/alerts'); const c = (d.alerts || d).find(x => x.type === 'category_needed'); _categories = c ? c.data.choices : []; }
+  catch (e) { _categories = []; }
+  return _categories;
 }
 document.getElementById('review').onclick = async () => {
   let d; try { d = await call('/api/v1/review'); } catch (e) { add('Error: ' + e.message, false, null, true); return; }
@@ -113,6 +121,20 @@ document.getElementById('review').onclick = async () => {
     if (it.reason === 'ambiguous_match') {
       for (const c of it.candidate_details) a.append(button('Same as ' + rupees(c.amount_paise) + ' ' + c.occurred_at.slice(0, 10) + ' ' + (c.counterparty || ''), () => act(card, it.id, 'resolve', {entry_id: c.id})));
       a.append(button('It is a new payment', () => act(card, it.id, 'resolve', {entry_id: null})));
+    }
+    if (it.reason === 'category_needed') {
+      const s2 = it.suggestion || {};
+      const info = document.createElement('div');
+      info.textContent = rupees(s2.amount_paise) + ' to ' + s2.payee + ' on ' + s2.date + (s2.account ? ' from ' + s2.account : '');
+      card.insertBefore(info, a);
+      const lbl = document.createElement('label'); const always = document.createElement('input'); always.type = 'checkbox'; always.checked = true;
+      lbl.append(always, ' Always use it for this payee'); card.insertBefore(lbl, a);
+      const names = await categoryNames();
+      const order = (s2.suggested || []).concat(names.filter(n => !(s2.suggested || []).includes(n)));
+      for (const n of order) a.append(button(((s2.suggested || []).includes(n) ? '★ ' : '') + n, () => act(card, it.id, 'category', {category: n, always: always.checked})));
+      a.append(button('Ignore (do not ask again)', () => act(card, it.id, 'ignore')));
+      log.appendChild(card); card.scrollIntoView({behavior: 'smooth', block: 'end'});
+      continue;
     }
     if (it.reason === 'unpaired_transfer' || it.reason === 'post_failed') a.append(button('Post it as it is', () => act(card, it.id, 'resolve', {post: true})));
     if (it.message && ['unknown_sender', 'unparsed', 'unknown_account'].includes(it.reason)) a.append(button('Read again', () => act(card, it.id, 'reparse')));

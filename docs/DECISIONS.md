@@ -4,6 +4,8 @@ Add one entry whenever a design choice is made or the spec changes. Newest first
 
 Format: date · decision · why · who approved
 
+- 2026-11-15 · Payments without a category become questions to the owner (alert now, phone notification in Phase 2); "always for this payee" creates a Firefly rule, so Firefly stays the place where categorisation lives · owner wants to be asked after each uncategorised payment · owner ("Approved")
+
 - 2026-11-14 · Google sign-in apps stay in "Testing"; reconnect reminders from day 3 through /api/v1/alerts (to become phone notifications in the Phase 2 app) · publishing needs a public home page and privacy policy, which the owner did not want · owner
 
 - 2026-11-14 · Backups: restic, encrypted on the server, stored in Google Drive with `drive.file` access only · owner wants them in Drive; Drive only sees encrypted data and only the backup folder · owner

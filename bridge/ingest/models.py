@@ -125,6 +125,7 @@ class ReviewItem(models.Model):
         UNPAIRED_TRANSFER = "unpaired_transfer"
         POST_FAILED = "post_failed"
         CARD_DUE_UNPAID = "card_due_unpaid"  # M5: a card's due date passed without the minimum paid
+        CATEGORY_NEEDED = "category_needed"  # M7: a posted payment has no category; the owner picks one
 
     class Status(models.TextChoices):
         OPEN = "open"

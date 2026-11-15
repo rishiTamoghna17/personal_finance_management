@@ -162,6 +162,7 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_BEAT_SCHEDULE = {
     "ingest-sweep": {"task": "ingest.tasks.sweep", "schedule": 60.0},
+    "category-check": {"task": "ingest.tasks.check_categories", "schedule": 300.0},
     "gmail-poll": {"task": "mail.tasks.poll_all", "schedule": GMAIL_POLL_MINUTES * 60.0},
     "statements": {"task": "statements.tasks.process_pending", "schedule": 3600.0},
     # 1st of each month, 06:00 IST: net worth snapshot of the month just ended. Daily 09:00: card dues check.
