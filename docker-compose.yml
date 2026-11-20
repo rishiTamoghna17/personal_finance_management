@@ -64,7 +64,7 @@ services:
     image: personal-finance-bridge:local
     user: "0:0"
     entrypoint: ["/bin/sh", "-c"]
-    command: "chown 10001:999 /backup-secrets && chmod 0700 /backup-secrets"
+    command: ["chown 10001:999 /backup-secrets && chmod 0700 /backup-secrets"]
     restart: "no"
     volumes:
       - backup_secrets:/backup-secrets
