@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.math.BigDecimal
+import java.net.SocketTimeoutException
 import java.time.LocalDate
 import java.util.Currency
 import java.util.Locale
@@ -86,6 +88,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun FinanceApp(credentials: BridgeCredentials) {
+    val uriHandler = LocalUriHandler.current
     val api = remember(credentials) { BridgeApi(credentials) }
     val scope = rememberCoroutineScope()
     var tab by remember { mutableStateOf(AppTab.Home) }
@@ -111,7 +114,11 @@ private fun FinanceApp(credentials: BridgeCredentials) {
             try {
                 action()
             } catch (error: Exception) {
-                errorMessage = error.message ?: "The request failed. Check the server connection and try again."
+                errorMessage = if (error is SocketTimeoutException) {
+                    "The server timed out. Check that Tailscale is connected, then tap Refresh."
+                } else {
+                    error.message ?: "The request failed. Check the server connection and try again."
+                }
             } finally {
                 busy = false
             }
@@ -215,7 +222,12 @@ private fun FinanceApp(credentials: BridgeCredentials) {
             }
 
             when (tab) {
-                AppTab.Home -> HomeScreen(dashboard, busy, onTransactions = { select(AppTab.Transactions) }, onReviews = { select(AppTab.Review) })
+                AppTab.Home -> HomeScreen(
+                    dashboard, busy,
+                    onTransactions = { select(AppTab.Transactions) },
+                    onReviews = { select(AppTab.Review) },
+                    onReconnect = { link -> uriHandler.openUri(link) },
+                )
                 AppTab.Transactions -> TransactionsScreen(transactionPage, busy, onPage = { loadTransactions(it) })
                 AppTab.Goals -> GoalsScreen(goalsData, busy)
                 AppTab.Chat -> ChatScreen(chat, messageInput, busy, onInput = { messageInput = it }, onSend = {
@@ -304,7 +316,10 @@ private fun ConnectionCard(
 }
 
 @Composable
-private fun HomeScreen(data: DashboardData?, busy: Boolean, onTransactions: () -> Unit, onReviews: () -> Unit) {
+private fun HomeScreen(
+    data: DashboardData?, busy: Boolean, onTransactions: () -> Unit, onReviews: () -> Unit,
+    onReconnect: (String) -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -355,7 +370,7 @@ private fun HomeScreen(data: DashboardData?, busy: Boolean, onTransactions: () -
                 SectionHeading("Accounts", "Balances from Firefly")
                 if (data.accounts.isEmpty()) EmptyCard("No accounts yet", "Accounts will appear here when your ledger has them.")
             }
-            items(data.accounts.take(6), key = { it.name }) { account ->
+            items(data.accounts, key = { it.name }) { account ->
                 ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
@@ -377,7 +392,7 @@ private fun HomeScreen(data: DashboardData?, busy: Boolean, onTransactions: () -
             item {
                 SectionHeading("Needs attention", "${data.reviewCount} open review items")
                 if (data.alerts.isEmpty() && data.reviewCount == 0) EmptyCard("All caught up", "There are no active alerts right now.")
-                data.alerts.take(4).forEach { alert -> AlertCard(alert) }
+                data.alerts.take(4).forEach { alert -> AlertCard(alert, onReconnect) }
             }
             item { OutlinedButton(onClick = onReviews, modifier = Modifier.fillMaxWidth()) { Text("Open review inbox") } }
             item { Spacer(Modifier.height(8.dp)) }
@@ -586,11 +601,18 @@ private fun UpcomingCard(item: UpcomingItem) {
 }
 
 @Composable
-private fun AlertCard(alert: FinanceAlert) {
+private fun AlertCard(alert: FinanceAlert, onReconnect: (String) -> Unit) {
     Surface(shape = RoundedCornerShape(16.dp), color = if (alert.severity == "high") Color(0xFFFFE9E4) else Color.White) {
         Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("•", color = if (alert.severity == "high") Color(0xFFB43E2F) else AccentOrange, style = MaterialTheme.typography.titleLarge)
-            Text(alert.message, modifier = Modifier.padding(start = 9.dp), style = MaterialTheme.typography.bodySmall)
+            Column(Modifier.weight(1f)) {
+                Text(alert.message, modifier = Modifier.padding(start = 9.dp), style = MaterialTheme.typography.bodySmall)
+                if (alert.link != null) {
+                    TextButton(onClick = { onReconnect(alert.link) }) {
+                        Text(if (alert.type == "google_reconnect") "Reconnect Google" else "Open link")
+                    }
+                }
+            }
         }
     }
 }

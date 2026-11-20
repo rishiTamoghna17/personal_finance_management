@@ -7,6 +7,7 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 import java.time.LocalDate
 
@@ -123,7 +124,7 @@ internal class BridgeApi(private val credentials: BridgeCredentials) {
         val connection = (URL(base + path).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 12_000
-            readTimeout = 25_000
+            readTimeout = 45_000
             setRequestProperty("Authorization", "Bearer $token")
             setRequestProperty("Accept", "application/json")
             if (body != null) {
@@ -175,7 +176,16 @@ internal class BridgeApi(private val credentials: BridgeCredentials) {
 
     private fun parseAlerts(rows: JSONArray): List<FinanceAlert> = (0 until rows.length()).mapNotNull { index ->
         val row = rows.optJSONObject(index) ?: return@mapNotNull null
-        FinanceAlert(row.optString("type"), row.optString("severity"), row.optString("message"))
+        val candidate = row.optJSONObject("data")?.optString("link")?.takeIf { it.startsWith("https://") }
+        val sameServer = try {
+            candidate != null && URI(candidate).host == URI(credentials.serverUrl()).host
+        } catch (_: Exception) {
+            false
+        }
+        FinanceAlert(
+            row.optString("type"), row.optString("severity"), row.optString("message"),
+            candidate.takeIf { sameServer },
+        )
     }
 
     private fun JSONArray?.toStringList(): List<String> = this?.let { values ->

@@ -35,7 +35,7 @@ internal data class UpcomingItem(
     val amountPaise: Long,
 )
 
-internal data class FinanceAlert(val type: String, val severity: String, val message: String)
+internal data class FinanceAlert(val type: String, val severity: String, val message: String, val link: String? = null)
 
 internal data class ReviewMessage(
     val id: Int,
