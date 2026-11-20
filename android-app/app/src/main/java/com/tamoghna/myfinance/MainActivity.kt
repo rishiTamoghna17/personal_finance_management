@@ -4,17 +4,24 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
@@ -43,11 +50,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.math.BigDecimal
@@ -366,11 +375,18 @@ private fun HomeScreen(
                     }
                 }
             }
+            val cards = data.accounts.filter { it.kind == "credit_card" }
+            val otherAccounts = data.accounts.filterNot { it.kind == "credit_card" }
             item {
-                SectionHeading("Accounts", "Balances from Firefly")
-                if (data.accounts.isEmpty()) EmptyCard("No accounts yet", "Accounts will appear here when your ledger has them.")
+                SectionHeading("Cards", "${cards.size} in your wallet")
+                if (cards.isEmpty()) EmptyCard("No credit cards yet", "Cards from Firefly will appear here.")
             }
-            items(data.accounts, key = { it.name }) { account ->
+            if (cards.isNotEmpty()) item { CreditCardStack(cards) }
+            item {
+                SectionHeading("Bank accounts", "${otherAccounts.size} · balances from Firefly")
+                if (otherAccounts.isEmpty()) EmptyCard("No bank accounts yet", "Bank and cash accounts will appear here.")
+            }
+            items(otherAccounts, key = { it.name }) { account ->
                 ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
@@ -399,6 +415,78 @@ private fun HomeScreen(
         }
         if (busy && data == null) item { LoadingCard() }
     }
+}
+
+@Composable
+private fun CreditCardStack(cards: List<AccountBalance>) {
+    var activeIndex by remember(cards) { mutableStateOf(0) }
+    val ordered = cards.indices.map { cards[(activeIndex + it) % cards.size] }
+    val peek = 42
+    val faceHeight = 174
+    Box(Modifier.fillMaxWidth().height((faceHeight + peek * (cards.size - 1)).dp)) {
+        ordered.indices.reversed().forEach { stackIndex ->
+            val card = ordered[stackIndex]
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(faceHeight.dp)
+                    .offset(y = (peek * stackIndex).dp)
+                    .zIndex((ordered.size - stackIndex).toFloat())
+                    .shadow(if (stackIndex == 0) 12.dp else 3.dp, RoundedCornerShape(23.dp))
+                    .clip(RoundedCornerShape(23.dp))
+                    .background(cardBrush(card.name))
+                    .then(if (stackIndex == 0) Modifier.clickable { activeIndex = (activeIndex + 1) % cards.size } else Modifier)
+            ) {
+                Box(Modifier.fillMaxSize()) {
+                    Box(
+                        Modifier.size(170.dp).align(Alignment.TopEnd).offset(x = 50.dp, y = (-55).dp)
+                            .background(Color.White.copy(alpha = 0.09f), CircleShape)
+                    )
+                    Box(
+                        Modifier.size(120.dp).align(Alignment.BottomStart).offset(x = 45.dp, y = 45.dp)
+                            .background(Color.Black.copy(alpha = 0.08f), CircleShape)
+                    )
+                    Column(
+                        Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 15.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(width = 34.dp, height = 25.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFFD9C58C)))
+                            Text(
+                                "  ${card.name.substringBefore(' ').uppercase()}",
+                                color = Color.White.copy(alpha = 0.9f),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(Modifier.weight(1f))
+                            Text("CREDIT", color = Color.White.copy(alpha = 0.76f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(card.name, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("LEDGER BALANCE", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
+                                    Text(formatInr(card.balancePaise), color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                }
+                                if (stackIndex == 0) Text("${activeIndex + 1}/${cards.size}  ›", color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun cardBrush(name: String): Brush {
+    val palette = when {
+        name.contains("HDFC", ignoreCase = true) -> listOf(Color(0xFF163960), Color(0xFF2877AA))
+        name.contains("Axis", ignoreCase = true) -> listOf(Color(0xFF111820), Color(0xFF394554))
+        name.contains("ICICI", ignoreCase = true) -> listOf(Color(0xFF084576), Color(0xFF1682AD))
+        name.contains("SBI", ignoreCase = true) -> listOf(Color(0xFF062C58), Color(0xFF0870A8))
+        else -> listOf(LedgerGreenDark, LedgerGreen)
+    }
+    return Brush.linearGradient(palette)
 }
 
 @Composable
