@@ -94,7 +94,11 @@ internal class BridgeApi(private val credentials: BridgeCredentials) {
                 id = data.optInt("review_id"), payee = data.optString("payee"),
                 amountPaise = data.optLong("amount_paise"), date = data.optString("date"),
                 account = data.optString("account"), suggested = data.optJSONArray("suggested").toStringList(),
-                choices = data.optJSONArray("choices").toStringList(),
+                choices = data.optJSONArray("choices").toStringList().ifEmpty {
+                    // The backend may omit the category list if Firefly is temporarily unavailable.
+                    // A prior owner-selected category is still a valid option for this payment.
+                    data.optJSONArray("suggested").toStringList()
+                },
             )
         }
     }

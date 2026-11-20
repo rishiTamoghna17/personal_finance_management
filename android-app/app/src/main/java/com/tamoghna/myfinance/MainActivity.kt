@@ -845,7 +845,7 @@ private fun ReviewScreen(
 }
 
 @Composable
-private fun CategoryQuestionCard(question: CategoryQuestion, enabled: Boolean, onApply: (String, Boolean) -> Unit) {
+private fun CategoryQuestionCard(question: CategoryQuestion, busy: Boolean, onApply: (String, Boolean) -> Unit) {
     var menuOpen by remember(question.id) { mutableStateOf(false) }
     var selected by remember(question.id) { mutableStateOf(question.suggested.firstOrNull().orEmpty()) }
     var always by remember(question.id) { mutableStateOf(false) }
@@ -857,7 +857,7 @@ private fun CategoryQuestionCard(question: CategoryQuestion, enabled: Boolean, o
                 Text("Suggested from your past choices: ${question.suggested.joinToString()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
             }
             androidx.compose.foundation.layout.Box {
-                OutlinedButton(enabled = enabled && question.choices.isNotEmpty(), onClick = { menuOpen = true }) {
+                OutlinedButton(enabled = question.choices.isNotEmpty(), onClick = { menuOpen = true }) {
                     Text(selected.ifBlank { "Choose a category" })
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
@@ -867,11 +867,15 @@ private fun CategoryQuestionCard(question: CategoryQuestion, enabled: Boolean, o
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = always, onCheckedChange = { always = it }, enabled = enabled)
+                Checkbox(checked = always, onCheckedChange = { always = it })
                 Text("Use for future payments to this payee", style = MaterialTheme.typography.bodySmall)
             }
-            Button(enabled = enabled && selected.isNotBlank(), onClick = { onApply(selected, always) }) {
+            Button(enabled = !busy && selected.isNotBlank(), onClick = { onApply(selected, always) }) {
                 Text(if (always) "Save category and rule" else "Save category")
+            }
+            if (question.choices.isEmpty()) {
+                Text("No Firefly categories are available right now. Check the server connection and refresh.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         }
     }
