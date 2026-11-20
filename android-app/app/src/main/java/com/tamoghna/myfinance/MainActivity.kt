@@ -145,6 +145,7 @@ private fun FinanceApp(credentials: BridgeCredentials) {
     var transactionPage by remember { mutableStateOf<TransactionsPage?>(null) }
     var goalsData by remember { mutableStateOf<GoalsData?>(null) }
     val reviews = remember { mutableStateListOf<ReviewMessage>() }
+    val feedbackHistory = remember { mutableStateListOf<ReviewMessage>() }
     val categoryQuestions = remember { mutableStateListOf<CategoryQuestion>() }
     val chat = remember { mutableStateListOf<Pair<String, String>>() }
     var server by remember { mutableStateOf(credentials.serverUrl()) }
@@ -293,13 +294,21 @@ private fun FinanceApp(credentials: BridgeCredentials) {
                 })
                 AppTab.Review -> ReviewScreen(
                     reviews = reviews,
+                    history = feedbackHistory,
                     categories = categoryQuestions,
                     busy = busy,
+                    onLoadHistory = { runRequest {
+                        feedbackHistory.clear()
+                        feedbackHistory.addAll(api.reviews("all").filter { it.feedback != null })
+                    } },
                     onLabel = { item, label -> runRequest {
                         api.label(item.id, label.code)
                         val fresh = api.reviews()
+                        val labeled = api.reviews("all").filter { it.feedback != null }
                         reviews.clear()
                         reviews.addAll(fresh)
+                        feedbackHistory.clear()
+                        feedbackHistory.addAll(labeled)
                         connectionMessage = "Saved your correction: ${label.title}."
                     } },
                     onCategory = { question, category, always -> runRequest {
@@ -463,18 +472,17 @@ private fun HomeScreen(
 
 @Composable
 private fun PrivateWalletSection(cards: List<WalletCard>, onAdd: (WalletCard) -> Unit, onDelete: (WalletCard) -> Unit) {
-    var showEditor by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<WalletDraft?>(null) }
     SectionHeading("My saved cards", "Private to this phone")
     cards.forEach { card ->
         WalletCardFace(card, onEdit = { editing = WalletDraft.from(card) }, onDelete = { onDelete(card) })
     }
-    OutlinedButton(onClick = { editing = WalletDraft(); showEditor = true }, modifier = Modifier.fillMaxWidth()) { Text("Scan or add a card") }
+    OutlinedButton(onClick = { editing = WalletDraft() }, modifier = Modifier.fillMaxWidth()) { Text("Scan or add a card") }
     Text("Manual display balances stay on this phone and are not included in Firefly or net worth.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     if (editing != null) WalletCardEditor(
         initial = editing!!,
-        onDismiss = { editing = null; showEditor = false },
-        onSave = { card -> onAdd(card); editing = null; showEditor = false },
+        onDismiss = { editing = null },
+        onSave = { card -> onAdd(card); editing = null },
         onUpdate = { card -> onDelete(card); onAdd(card); editing = null },
     )
 }
@@ -522,7 +530,6 @@ private fun WalletCardFace(card: WalletCard, onEdit: () -> Unit, onDelete: () ->
 
 @Composable
 private fun WalletCardEditor(initial: WalletDraft, onDismiss: () -> Unit, onSave: (WalletCard) -> Unit, onUpdate: (WalletCard) -> Unit) {
-    val context = LocalContext.current
     var draft by remember(initial.id) { mutableStateOf(initial) }
     var error by remember { mutableStateOf("") }
     var scanning by remember { mutableStateOf(false) }
@@ -763,23 +770,28 @@ private fun ChatScreen(
 @Composable
 private fun ReviewScreen(
     reviews: List<ReviewMessage>,
+    history: List<ReviewMessage>,
     categories: List<CategoryQuestion>,
     busy: Boolean,
+    onLoadHistory: () -> Unit,
     onLabel: (ReviewMessage, FeedbackType) -> Unit,
     onCategory: (CategoryQuestion, String, Boolean) -> Unit,
 ) {
+    var showHistory by remember { mutableStateOf(false) }
+    val visibleReviews = if (showHistory) history else reviews
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { Text("Categorize payments and correct unclear messages", modifier = Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item { OutlinedButton(enabled = !busy, onClick = { showHistory = !showHistory; if (showHistory && history.isEmpty()) onLoadHistory() }, modifier = Modifier.fillMaxWidth()) { Text(if (showHistory) "Back to open reviews" else "View and correct saved labels") } }
         if (categories.isNotEmpty()) item { SectionHeading("Payment categories", "${categories.size} waiting") }
         items(categories, key = { "category-${it.id}" }) { question ->
             CategoryQuestionCard(question, busy) { name, always -> onCategory(question, name, always) }
         }
-        if (reviews.isNotEmpty()) item { SectionHeading("Message review", "Corrections guide future local classification") }
-        if (reviews.isEmpty() && categories.isEmpty()) {
-            item { EmptyCard("Nothing needs review", "Unparsed messages and uncategorized payments will appear here.") }
+        if (visibleReviews.isNotEmpty()) item { SectionHeading(if (showHistory) "Saved message labels" else "Message review", if (showHistory) "Tap a label to correct it" else "Corrections guide future local classification") }
+        if (visibleReviews.isEmpty() && categories.isEmpty()) {
+            item { EmptyCard(if (showHistory) "No saved message labels" else "Nothing needs review", if (showHistory) "Owner corrections will appear here so they can be changed later." else "Unparsed messages and uncategorized payments will appear here.") }
             if (busy) item { LoadingCard() }
         } else {
-            items(reviews, key = { "message-${it.id}" }) { item -> ReviewCard(item, busy) { label -> onLabel(item, label) } }
+            items(visibleReviews, key = { "message-${it.id}" }) { item -> ReviewCard(item, busy) { label -> onLabel(item, label) } }
         }
         item { Spacer(Modifier.height(8.dp)) }
     }
@@ -904,6 +916,7 @@ private fun ReviewCard(item: ReviewMessage, enabled: Boolean, onLabel: (Feedback
             Text(item.text.ifBlank { "Message text is unavailable" }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
             Text(item.sentAt.take(16).replace('T', ' '), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (item.reason == "unparsed" || item.reason == "unknown_sender") {
+                if (item.feedback != null) Text("Saved label: ${feedbackTypes.firstOrNull { it.code == item.feedback }?.title ?: item.feedback} · ${item.status}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 Button(enabled = enabled, onClick = { expanded = true }) { Text("Correct message type") }
                 androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     feedbackTypes.forEach { choice ->

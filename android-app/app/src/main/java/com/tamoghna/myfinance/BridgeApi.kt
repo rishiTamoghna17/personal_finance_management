@@ -67,8 +67,8 @@ internal class BridgeApi(private val credentials: BridgeCredentials) {
         )
     }
 
-    suspend fun reviews(): List<ReviewMessage> = withContext(Dispatchers.IO) {
-        val rows = request("GET", "/api/v1/review").optJSONArray("items") ?: JSONArray()
+    suspend fun reviews(status: String = "open"): List<ReviewMessage> = withContext(Dispatchers.IO) {
+        val rows = request("GET", "/api/v1/review?status=$status").optJSONArray("items") ?: JSONArray()
         (0 until rows.length()).mapNotNull { index ->
             val item = rows.optJSONObject(index) ?: return@mapNotNull null
             val message = item.optJSONObject("message") ?: JSONObject()
@@ -78,6 +78,8 @@ internal class BridgeApi(private val credentials: BridgeCredentials) {
                 sender = message.optString("sender"),
                 text = message.optString("text"),
                 sentAt = message.optString("sent_at"),
+                status = item.optString("status"),
+                feedback = item.optString("feedback").takeUnless { it == "null" || it.isBlank() },
             )
         }
     }

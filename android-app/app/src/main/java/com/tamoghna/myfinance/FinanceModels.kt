@@ -43,6 +43,8 @@ internal data class ReviewMessage(
     val sender: String,
     val text: String,
     val sentAt: String,
+    val status: String = "open",
+    val feedback: String? = null,
 )
 
 internal data class CategoryQuestion(
