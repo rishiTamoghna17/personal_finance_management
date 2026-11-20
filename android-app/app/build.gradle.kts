@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,7 +8,13 @@ plugins {
 
 android {
     namespace = "com.tamoghna.myfinance"
-    compileSdk = 36
+    compileSdk = 37
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
 
     defaultConfig {
         applicationId = "com.tamoghna.myfinance"
@@ -17,6 +25,12 @@ android {
     }
 
     buildFeatures { compose = true }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
 }
 
 dependencies {

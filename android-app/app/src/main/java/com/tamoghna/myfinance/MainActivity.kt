@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,7 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,9 +19,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -44,19 +44,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
+import java.math.BigDecimal
+import java.time.LocalDate
+import java.util.Currency
+import java.util.Locale
 
 private val LedgerGreen = Color(0xFF176B4D)
 private val LedgerGreenDark = Color(0xFF104B38)
 private val WarmCanvas = Color(0xFFF7F6F1)
+private val SoftGreen = Color(0xFFE8F1EA)
 private val AccentOrange = Color(0xFFE87722)
+private val MutedText = Color(0xFF64716A)
+
+private enum class AppTab(val title: String, val glyph: String) {
+    Home("Home", "⌂"), Transactions("Activity", "↕"), Goals("Plans", "◎"), Chat("Ask", "✦"), Review("Review", "☷")
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,256 +76,531 @@ class MainActivity : ComponentActivity() {
                     surface = Color.White,
                     onSurface = Color(0xFF18231E),
                 ),
-            ) {
-                FeedbackHome(credentials)
-            }
+            ) { FinanceApp(credentials) }
         }
     }
 }
 
-private data class ReviewMessage(
-    val id: Int,
-    val reason: String,
-    val sender: String,
-    val text: String,
-    val sentAt: String,
-)
-
-private data class FeedbackType(val code: String, val title: String)
-
-private val feedbackTypes = listOf(
-    FeedbackType("transaction_alert", "Transaction alert"),
-    FeedbackType("promotion", "Promotion"),
-    FeedbackType("card_bill_payment", "Card bill payment"),
-    FeedbackType("failed_payment", "Failed payment"),
-    FeedbackType("refund_reversal", "Refund or reversal"),
-    FeedbackType("due_reminder", "Due reminder"),
-    FeedbackType("other", "Other"),
-)
-
 @Composable
-private fun FeedbackHome(credentials: BridgeCredentials) {
+private fun FinanceApp(credentials: BridgeCredentials) {
+    val api = remember(credentials) { BridgeApi(credentials) }
     val scope = rememberCoroutineScope()
+    var tab by remember { mutableStateOf(AppTab.Home) }
+    var dashboard by remember { mutableStateOf<DashboardData?>(null) }
+    var transactionPage by remember { mutableStateOf<TransactionsPage?>(null) }
+    var goalsData by remember { mutableStateOf<GoalsData?>(null) }
     val reviews = remember { mutableStateListOf<ReviewMessage>() }
+    val chat = remember { mutableStateListOf<Pair<String, String>>() }
     var server by remember { mutableStateOf(credentials.serverUrl()) }
     var tokenInput by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("Connect to your private finance server.") }
+    var messageInput by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(!credentials.hasToken()) }
+    var errorMessage by remember { mutableStateOf("") }
+    var connectionMessage by remember { mutableStateOf("") }
 
-    fun launchRequest(request: suspend () -> String) {
+    fun runRequest(action: suspend () -> Unit) {
         if (busy) return
         busy = true
+        errorMessage = ""
         scope.launch {
-            status = try {
-                withContext(Dispatchers.IO) { request() }
-            } catch (e: Exception) {
-                "Could not reach the server: ${e.message ?: "connection failed"}"
+            try {
+                action()
+            } catch (error: Exception) {
+                errorMessage = error.message ?: "The request failed. Check the server connection and try again."
             } finally {
                 busy = false
             }
         }
     }
 
-    fun refresh() = launchRequest {
-        val items = BridgeApi(credentials).reviews()
-        withContext(Dispatchers.Main) {
-            reviews.clear()
-            reviews.addAll(items)
-        }
-        "${items.size} item${if (items.size == 1) "" else "s"} waiting for review"
+    fun loadHome() = runRequest { dashboard = api.dashboard() }
+    fun loadTransactions(page: Int = 1) = runRequest {
+        transactionPage = api.transactions(LocalDate.now().minusDays(90), LocalDate.now(), page, 50)
+    }
+    fun loadGoals() = runRequest { goalsData = api.goals() }
+    fun loadReviews() = runRequest {
+        val fresh = api.reviews()
+        reviews.clear()
+        reviews.addAll(fresh)
     }
 
-    Scaffold(containerColor = WarmCanvas) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            item {
-                Column(modifier = Modifier.padding(top = 18.dp, bottom = 4.dp)) {
-                    Text("MY FINANCE", style = MaterialTheme.typography.labelLarge, color = LedgerGreen, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(6.dp))
-                    Text("Your money,\nin one place.", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = LedgerGreenDark)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Private finance overview and bank-message review", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF58645E))
+    fun select(next: AppTab) {
+        tab = next
+        when (next) {
+            AppTab.Home -> if (dashboard == null && credentials.hasToken()) loadHome()
+            AppTab.Transactions -> if (transactionPage == null && credentials.hasToken()) loadTransactions()
+            AppTab.Goals -> if (goalsData == null && credentials.hasToken()) loadGoals()
+            AppTab.Review -> if (reviews.isEmpty() && credentials.hasToken()) loadReviews()
+            AppTab.Chat -> Unit
+        }
+    }
+
+    Scaffold(
+        containerColor = WarmCanvas,
+        bottomBar = {
+            NavigationBar(containerColor = Color.White) {
+                AppTab.entries.forEach { destination ->
+                    NavigationBarItem(
+                        selected = tab == destination,
+                        onClick = { select(destination) },
+                        icon = { Text(destination.glyph, style = MaterialTheme.typography.titleLarge) },
+                        label = { Text(destination.title) },
+                    )
                 }
             }
+        },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 15.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("MY FINANCE", color = LedgerGreen, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    Text(tab.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = LedgerGreenDark)
+                }
+                TextButton(onClick = { showSettings = !showSettings }) { Text(if (showSettings) "Close" else "⚙ Setup") }
+                TextButton(enabled = !busy && credentials.hasToken(), onClick = {
+                    when (tab) {
+                        AppTab.Home -> loadHome()
+                        AppTab.Transactions -> loadTransactions()
+                        AppTab.Goals -> loadGoals()
+                        AppTab.Review -> loadReviews()
+                        AppTab.Chat -> Unit
+                    }
+                }) { Text(if (busy) "Loading…" else "Refresh") }
+            }
+
+            if (showSettings) {
+                ConnectionCard(
+                    server = server,
+                    token = tokenInput,
+                    saved = credentials.hasToken(),
+                    busy = busy,
+                    onServer = { server = it },
+                    onToken = { tokenInput = it },
+                    onSave = {
+                        val cleaned = server.trim().trimEnd('/')
+                        when {
+                            !cleaned.startsWith("https://") -> errorMessage = "Use the private HTTPS address beginning with https://"
+                            tokenInput.isBlank() && !credentials.hasToken() -> errorMessage = "Paste the bridge API token first"
+                            else -> {
+                                credentials.setServerUrl(cleaned)
+                                if (tokenInput.isNotBlank()) credentials.saveToken(tokenInput.trim())
+                                tokenInput = ""
+                                showSettings = false
+                                connectionMessage = "Connection details saved securely on this phone."
+                                loadHome()
+                            }
+                        }
+                    },
+                )
+            }
+
+            if (connectionMessage.isNotBlank() && !showSettings) {
+                Text(connectionMessage, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = LedgerGreen, style = MaterialTheme.typography.bodySmall)
+            }
+            if (errorMessage.isNotBlank()) {
+                Surface(color = Color(0xFFFFE8E4), modifier = Modifier.fillMaxWidth()) {
+                    Text(errorMessage, modifier = Modifier.padding(horizontal = 20.dp, vertical = 9.dp), color = Color(0xFF8B3023), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+
+            when (tab) {
+                AppTab.Home -> HomeScreen(dashboard, busy, onTransactions = { select(AppTab.Transactions) }, onReviews = { select(AppTab.Review) })
+                AppTab.Transactions -> TransactionsScreen(transactionPage, busy, onPage = { loadTransactions(it) })
+                AppTab.Goals -> GoalsScreen(goalsData, busy)
+                AppTab.Chat -> ChatScreen(chat, messageInput, busy, onInput = { messageInput = it }, onSend = {
+                    val prompt = messageInput.trim()
+                    if (prompt.isNotEmpty() && !busy) {
+                        val history = chat.toList()
+                        chat.add("user" to prompt)
+                        messageInput = ""
+                        runRequest {
+                            val reply = api.chat(prompt, history)
+                            chat.add("assistant" to reply)
+                        }
+                    }
+                })
+                AppTab.Review -> ReviewScreen(reviews, busy, onLabel = { item, label ->
+                    runRequest {
+                        api.label(item.id, label.code)
+                        val fresh = api.reviews()
+                        reviews.clear()
+                        reviews.addAll(fresh)
+                        connectionMessage = "Saved your correction: ${label.title}."
+                    }
+                })
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConnectionCard(
+    server: String,
+    token: String,
+    saved: Boolean,
+    busy: Boolean,
+    onServer: (String) -> Unit,
+    onToken: (String) -> Unit,
+    onSave: () -> Unit,
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Private server", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Surface(shape = RoundedCornerShape(40), color = SoftGreen) {
+                    Text("HTTPS", modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), color = LedgerGreen, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                }
+            }
+            OutlinedTextField(
+                value = server,
+                onValueChange = onServer,
+                label = { Text("Tailscale server address") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            )
+            OutlinedTextField(
+                value = token,
+                onValueChange = onToken,
+                label = { Text("Bridge API token") },
+                placeholder = { Text(if (saved) "Already saved securely on this phone" else "Paste your token") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Button(enabled = !busy, onClick = onSave, modifier = Modifier.fillMaxWidth()) {
+                Text(if (saved) "Save connection" else "Connect securely")
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeScreen(data: DashboardData?, busy: Boolean, onTransactions: () -> Unit, onReviews: () -> Unit) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            Column(Modifier.padding(top = 5.dp, bottom = 2.dp)) {
+                Text("A clear view of your money", style = MaterialTheme.typography.bodyMedium, color = MutedText)
+            }
+        }
+        if (data == null) {
+            item { EmptyCard("Connect to your finance server", "Save your private server address and bridge token using Setup above.") }
+        } else {
             item {
                 ElevatedCard(
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+                    shape = RoundedCornerShape(26.dp),
+                    colors = CardDefaults.elevatedCardColors(containerColor = LedgerGreenDark),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Server connection", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            Surface(shape = RoundedCornerShape(50), color = Color(0xFFE7F2EA)) {
-                                Text("PRIVATE", modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), color = LedgerGreen, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        OutlinedTextField(
-                            value = server,
-                            onValueChange = { server = it },
-                            label = { Text("Tailscale server URL") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        )
-                        OutlinedTextField(
-                            value = tokenInput,
-                            onValueChange = { tokenInput = it },
-                            label = { Text("Bridge API token") },
-                            placeholder = { Text(if (credentials.hasToken()) "Saved securely on this phone" else "Paste your token") },
-                            singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            OutlinedButton(onClick = {
-                                val cleaned = server.trim().trimEnd('/')
-                                if (!cleaned.startsWith("https://")) {
-                                    status = "Use the private HTTPS address beginning with https://"
-                                } else if (tokenInput.isBlank() && !credentials.hasToken()) {
-                                    status = "Paste your bridge API token first"
-                                } else {
-                                    credentials.setServerUrl(cleaned)
-                                    if (tokenInput.isNotBlank()) credentials.saveToken(tokenInput.trim())
-                                    tokenInput = ""
-                                    status = "Connection details saved securely on this phone"
-                                }
-                            }) { Text("Save securely") }
-                            Button(enabled = !busy, onClick = { refresh() }) { Text(if (busy) "Loading…" else "Load reviews") }
-                        }
-                        Text(status, style = MaterialTheme.typography.bodySmall, color = Color(0xFF58645E))
+                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text("NET WORTH", color = Color(0xFFCDE2D3), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                        Text(formatInr(data.netWorthPaise), color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                        Text("Assets minus liabilities · ledger values", color = Color(0xFFDCEAE0), style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
             item {
-                Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Review inbox", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text("Your labels help recognize similar messages later.", style = MaterialTheme.typography.bodySmall, color = Color(0xFF58645E))
-                    }
-                    Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFFFEAD8)) {
-                        Text("${reviews.size}", modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp), color = LedgerGreenDark, fontWeight = FontWeight.Bold)
-                    }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SummaryCard("Assets", data.assetsPaise, Modifier.weight(1f))
+                    SummaryCard("Liabilities", data.liabilitiesPaise, Modifier.weight(1f))
                 }
             }
-            if (reviews.isEmpty()) {
-                item {
-                    ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(18.dp)) {
-                            Text("Nothing loaded yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("Connect to the server to see messages that need your review.", modifier = Modifier.padding(top = 5.dp), color = Color(0xFF58645E))
-                        }
-                    }
-                }
-            } else {
-                items(reviews, key = { it.id }) { item ->
-                    ReviewCard(item = item, enabled = !busy, onLabel = { label ->
-                        launchRequest {
-                            BridgeApi(credentials).label(item.id, label.code)
-                            val updated = BridgeApi(credentials).reviews()
-                            withContext(Dispatchers.Main) {
-                                reviews.clear()
-                                reviews.addAll(updated)
+            item {
+                ElevatedCard(shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Spent this month", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(formatInr(data.monthSpendPaise), style = MaterialTheme.typography.headlineSmall, color = LedgerGreenDark, fontWeight = FontWeight.Bold)
+                        Text("${data.monthStart} to ${data.monthEnd}", style = MaterialTheme.typography.labelSmall, color = MutedText)
+                        data.topCategories.take(3).forEach { (name, amount) ->
+                            Row(Modifier.fillMaxWidth().padding(top = 5.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(name, style = MaterialTheme.typography.bodySmall, color = MutedText)
+                                Text(formatInr(amount), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
                             }
-                            "Saved your correction: ${label.title}"
                         }
-                    })
+                    }
                 }
             }
-            item { Spacer(Modifier.height(12.dp)) }
+            item {
+                SectionHeading("Accounts", "Balances from Firefly")
+                if (data.accounts.isEmpty()) EmptyCard("No accounts yet", "Accounts will appear here when your ledger has them.")
+            }
+            items(data.accounts.take(6), key = { it.name }) { account ->
+                ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(account.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text("${account.kind.replace('_', ' ')} · ${account.status}", style = MaterialTheme.typography.labelSmall, color = MutedText)
+                        }
+                        Text(formatInr(account.balancePaise), fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+            item {
+                SectionHeading("Recent activity", "Last 30 days")
+                if (data.transactions.isEmpty()) EmptyCard("No transactions in this period", "The ledger has no recent INR transactions to show.")
+            }
+            items(data.transactions.take(5), key = { it.id }) { TransactionCard(it) }
+            item {
+                OutlinedButton(onClick = onTransactions, modifier = Modifier.fillMaxWidth()) { Text("See all activity") }
+            }
+            item {
+                SectionHeading("Needs attention", "${data.reviewCount} open review items")
+                if (data.alerts.isEmpty() && data.reviewCount == 0) EmptyCard("All caught up", "There are no active alerts right now.")
+                data.alerts.take(4).forEach { alert -> AlertCard(alert) }
+            }
+            item { OutlinedButton(onClick = onReviews, modifier = Modifier.fillMaxWidth()) { Text("Open review inbox") } }
+            item { Spacer(Modifier.height(8.dp)) }
+        }
+        if (busy && data == null) item { LoadingCard() }
+    }
+}
+
+@Composable
+private fun TransactionsScreen(page: TransactionsPage?, busy: Boolean, onPage: (Int) -> Unit) {
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item {
+            Text("INR ledger activity from the last 90 days", modifier = Modifier.padding(top = 5.dp, bottom = 2.dp), style = MaterialTheme.typography.bodySmall, color = MutedText)
+        }
+        if (page == null) {
+            item { EmptyCard("Load your activity", "Transactions are read from the Firefly ledger.") }
+            if (busy) item { LoadingCard() }
+        } else if (page.items.isEmpty()) {
+            item { EmptyCard("No INR transactions found", "Try refreshing after new activity arrives in Firefly.") }
+        } else {
+            items(page.items, key = { it.id }) { TransactionCard(it, expanded = true) }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("${page.totalItems} entries · page ${page.page} of ${page.totalPages}", style = MaterialTheme.typography.labelSmall, color = MutedText)
+                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        TextButton(enabled = !busy && page.page > 1, onClick = { onPage(page.page - 1) }) { Text("Previous") }
+                        TextButton(enabled = !busy && page.page < page.totalPages, onClick = { onPage(page.page + 1) }) { Text("Next") }
+                    }
+                }
+            }
+        }
+        item { Spacer(Modifier.height(8.dp)) }
+    }
+}
+
+@Composable
+private fun GoalsScreen(data: GoalsData?, busy: Boolean) {
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+        item { Text("Savings goals, investment values and upcoming dues", modifier = Modifier.padding(top = 5.dp), style = MaterialTheme.typography.bodySmall, color = MutedText) }
+        if (data == null) {
+            item { EmptyCard("Load your plans", "Goals and holdings are read from your finance server.") }
+            if (busy) item { LoadingCard() }
+        } else {
+            item { SectionHeading("Goals", "${data.goals.size} tracked") }
+            if (data.goals.isEmpty()) item { EmptyCard("No goals yet", "Your Firefly savings goals will show here when configured.") }
+            items(data.goals, key = { it.name }) { goal -> GoalCard(goal) }
+            item { SectionHeading("Investments", data.holdingsDate?.let { "CAS values · $it" } ?: "No CAS imported") }
+            item {
+                ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(17.dp)) {
+                        Text(formatInr(data.holdingsTotalPaise), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = LedgerGreenDark)
+                        Text("Value from the latest statement", style = MaterialTheme.typography.bodySmall, color = MutedText)
+                    }
+                }
+            }
+            item { SectionHeading("Upcoming", "Next 30 days") }
+            if (data.upcoming.isEmpty()) item { EmptyCard("No upcoming dues", "No EMI or card bill is scheduled in this period.") }
+            items(data.upcoming, key = { "${it.type}-${it.date}-${it.name}" }) { UpcomingCard(it) }
+        }
+        item { Spacer(Modifier.height(8.dp)) }
+    }
+}
+
+@Composable
+private fun ChatScreen(
+    messages: List<Pair<String, String>>,
+    input: String,
+    busy: Boolean,
+    onInput: (String) -> Unit,
+    onSend: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        Text("Ask about your ledger, goals or spending. Answers use the private advisor API.", modifier = Modifier.padding(top = 4.dp, bottom = 9.dp), style = MaterialTheme.typography.bodySmall, color = MutedText)
+        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            if (messages.isEmpty()) item { EmptyCard("Your finance assistant", "Try asking: ‘How much did I spend this month?’") }
+            items(messages.size) { index ->
+                val (role, content) = messages[index]
+                ChatBubble(role, content)
+            }
+            if (busy) item { LoadingCard() }
+        }
+        Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = input,
+                onValueChange = onInput,
+                modifier = Modifier.weight(1f),
+                label = { Text("Ask a question") },
+                maxLines = 3,
+            )
+            Button(enabled = input.isNotBlank() && !busy, onClick = onSend) { Text("Send") }
+        }
+    }
+}
+
+@Composable
+private fun ReviewScreen(items: List<ReviewMessage>, busy: Boolean, onLabel: (ReviewMessage, FeedbackType) -> Unit) {
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item { Text("Owner review queue · corrections help future local classification", modifier = Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodySmall, color = MutedText) }
+        if (items.isEmpty()) {
+            item { EmptyCard("No open review items", "Unparsed or ambiguous messages will appear here for you to review.") }
+            if (busy) item { LoadingCard() }
+        } else {
+            items(items, key = { it.id }) { item -> ReviewCard(item, busy) { label -> onLabel(item, label) } }
+        }
+        item { Spacer(Modifier.height(8.dp)) }
+    }
+}
+
+@Composable
+private fun SummaryCard(label: String, amountPaise: Long, modifier: Modifier = Modifier) {
+    ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = modifier) {
+        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MutedText)
+            Text(formatInr(amountPaise), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = LedgerGreenDark)
+        }
+    }
+}
+
+@Composable
+private fun TransactionCard(item: FinanceTransaction, expanded: Boolean = false) {
+    ElevatedCard(shape = RoundedCornerShape(19.dp), modifier = Modifier.fillMaxWidth(), colors = CardDefaults.elevatedCardColors(containerColor = Color.White)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(item.payee.ifBlank { item.description.ifBlank { "Ledger transaction" } }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text("${item.date} · ${item.category.ifBlank { "Uncategorised" }}", style = MaterialTheme.typography.labelSmall, color = MutedText)
+                if (expanded && item.description.isNotBlank() && item.description != item.payee) {
+                    Text(item.description, style = MaterialTheme.typography.bodySmall, color = MutedText)
+                    Text("${item.type.replace('_', ' ')} · ${item.source} → ${item.destination}", style = MaterialTheme.typography.labelSmall, color = MutedText)
+                }
+            }
+            Text(formatInr(item.amountPaise), color = if (item.type == "deposit") LedgerGreen else Color(0xFF263A31), fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun GoalCard(goal: GoalProgress) {
+    ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(goal.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text("${goal.percent}%", color = LedgerGreen, fontWeight = FontWeight.Bold)
+            }
+            LinearProgressIndicator(progress = { (goal.percent.coerceIn(0, 100)) / 100f }, modifier = Modifier.fillMaxWidth(), color = LedgerGreen)
+            Text("${formatInr(goal.savedPaise)} of ${formatInr(goal.targetPaise)}", style = MaterialTheme.typography.bodySmall)
+            goal.neededPerMonthPaise?.let { Text("${formatInr(it)} per month needed${goal.targetDate?.let { d -> " · by $d" }.orEmpty()}", style = MaterialTheme.typography.labelSmall, color = MutedText) }
+        }
+    }
+}
+
+@Composable
+private fun UpcomingCard(item: UpcomingItem) {
+    ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(item.name.ifBlank { item.type.replace('_', ' ').replaceFirstChar { it.uppercase() } }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(item.date, style = MaterialTheme.typography.labelSmall, color = MutedText)
+            }
+            Text(formatInr(item.amountPaise), fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun AlertCard(alert: FinanceAlert) {
+    Surface(shape = RoundedCornerShape(16.dp), color = if (alert.severity == "high") Color(0xFFFFE9E4) else Color.White) {
+        Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("•", color = if (alert.severity == "high") Color(0xFFB43E2F) else AccentOrange, style = MaterialTheme.typography.titleLarge)
+            Text(alert.message, modifier = Modifier.padding(start = 9.dp), style = MaterialTheme.typography.bodySmall)
         }
     }
 }
 
 @Composable
 private fun ReviewCard(item: ReviewMessage, enabled: Boolean, onLabel: (FeedbackType) -> Unit) {
-    ElevatedCard(
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+    var expanded by remember { mutableStateOf(false) }
+    ElevatedCard(shape = RoundedCornerShape(21.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(item.sender.ifBlank { "Bank message" }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Surface(shape = RoundedCornerShape(50), color = Color(0xFFFFEAD8)) {
+                Text(item.sender.ifBlank { "Bank message" }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Surface(shape = RoundedCornerShape(40), color = Color(0xFFFFEAD8)) {
                     Text(item.reason.replace('_', ' '), modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = LedgerGreenDark, style = MaterialTheme.typography.labelSmall)
                 }
             }
             Text(item.text.ifBlank { "Message text is unavailable" }, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF35413A))
-            Text(item.sentAt.take(16).replace('T', ' '), style = MaterialTheme.typography.labelSmall, color = Color(0xFF758078))
+            Text(item.sentAt.take(16).replace('T', ' '), style = MaterialTheme.typography.labelSmall, color = MutedText)
             if (item.reason == "unparsed" || item.reason == "unknown_sender") {
-                FeedbackMenu(enabled = enabled, onLabel = onLabel)
+                Button(enabled = enabled, onClick = { expanded = true }) { Text("Correct message type") }
+                androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    feedbackTypes.forEach { choice ->
+                        androidx.compose.material3.DropdownMenuItem(text = { Text(choice.title) }, onClick = { expanded = false; onLabel(choice) })
+                    }
+                }
             } else {
-                Text("This review needs a different action in the finance app.", style = MaterialTheme.typography.bodySmall, color = Color(0xFF758078))
+                Text("This item needs a different review action.", style = MaterialTheme.typography.bodySmall, color = MutedText)
             }
         }
     }
 }
 
 @Composable
-private fun FeedbackMenu(enabled: Boolean, onLabel: (FeedbackType) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        Button(enabled = enabled, onClick = { expanded = true }) { Text("Correct message type") }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            feedbackTypes.forEach { choice ->
-                DropdownMenuItem(
-                    text = { Text(choice.title) },
-                    onClick = { expanded = false; onLabel(choice) },
-                )
-            }
+private fun ChatBubble(role: String, content: String) {
+    val isUser = role == "user"
+    Surface(
+        shape = RoundedCornerShape(19.dp),
+        color = if (isUser) LedgerGreen else Color.White,
+        modifier = Modifier.fillMaxWidth(if (isUser) 0.88f else 1f).padding(start = if (isUser) 36.dp else 0.dp, end = if (isUser) 0.dp else 36.dp),
+    ) {
+        Text(content, modifier = Modifier.padding(14.dp), color = if (isUser) Color.White else Color(0xFF26352D), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun SectionHeading(title: String, subtitle: String) {
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp), verticalAlignment = Alignment.Bottom) {
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MutedText)
+    }
+}
+
+@Composable
+private fun EmptyCard(title: String, message: String) {
+    ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(message, style = MaterialTheme.typography.bodySmall, color = MutedText)
         }
     }
 }
 
-private class BridgeApi(private val credentials: BridgeCredentials) {
-    suspend fun reviews(): List<ReviewMessage> = withContext(Dispatchers.IO) {
-        val response = request("GET", "/api/v1/review")
-        val rows = response.getJSONArray("items")
-        (0 until rows.length()).mapNotNull { index ->
-            val item = rows.optJSONObject(index) ?: return@mapNotNull null
-            val message = item.optJSONObject("message") ?: JSONObject()
-            ReviewMessage(
-                id = item.optInt("id"),
-                reason = item.optString("reason"),
-                sender = message.optString("sender"),
-                text = message.optString("text"),
-                sentAt = message.optString("sent_at"),
-            )
-        }
+@Composable
+private fun LoadingCard() {
+    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+        Text("Loading from your private server…", style = MaterialTheme.typography.bodySmall, color = MutedText)
     }
+}
 
-    suspend fun label(id: Int, label: String) = withContext(Dispatchers.IO) {
-        request("POST", "/api/v1/review/$id/feedback", JSONObject().put("label", label))
+private fun formatInr(paise: Long): String {
+    val formatter = java.text.NumberFormat.getCurrencyInstance(Locale("en", "IN")).apply {
+        currency = Currency.getInstance("INR")
+        minimumFractionDigits = 2
+        maximumFractionDigits = 2
     }
-
-    private fun request(method: String, path: String, body: JSONObject? = null): JSONObject {
-        val token = credentials.readToken().ifBlank { error("Save the bridge API token first") }
-        val base = credentials.serverUrl().trim().trimEnd('/')
-        require(base.startsWith("https://")) { "The server address must use private HTTPS" }
-        val connection = (URL(base + path).openConnection() as HttpURLConnection).apply {
-            requestMethod = method
-            connectTimeout = 12_000
-            readTimeout = 20_000
-            setRequestProperty("Authorization", "Bearer $token")
-            setRequestProperty("Accept", "application/json")
-            if (body != null) {
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json")
-            }
-        }
-        try {
-            if (body != null) connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val content = stream?.use { input -> BufferedReader(InputStreamReader(input)).readText() }.orEmpty()
-            if (code !in 200..299) error("Server returned HTTP $code")
-            return JSONObject(content)
-        } finally {
-            connection.disconnect()
-        }
-    }
+    return formatter.format(BigDecimal.valueOf(paise, 2))
 }

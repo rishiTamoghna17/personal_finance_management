@@ -3,7 +3,7 @@ from django.urls import path
 from advisor.views import AlertsView, ChatView, DigestView
 from core.views import HealthView
 from mail.views import GoogleCallbackView, GoogleConnectView
-from firefly.views import AccountsView
+from firefly.views import AccountsView, TransactionsView
 from ingest.views import IngestEmailView, IngestSmsView, ReviewActionView, ReviewFeedbackView, ReviewListView
 from wealth.views import GoalsView, HoldingsView, NetWorthView, UpcomingView
 
@@ -11,6 +11,7 @@ from wealth.views import GoalsView, HoldingsView, NetWorthView, UpcomingView
 urlpatterns = [
     path("api/v1/health", HealthView.as_view(), name="health"),
     path("api/v1/accounts", AccountsView.as_view(), name="accounts"),
+    path("api/v1/transactions", TransactionsView.as_view(), name="transactions"),
     path("api/v1/ingest/sms", IngestSmsView.as_view(), name="ingest-sms"),
     path("api/v1/ingest/email", IngestEmailView.as_view(), name="ingest-email"),
     path("api/v1/review", ReviewListView.as_view(), name="review-list"),

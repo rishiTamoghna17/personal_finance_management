@@ -62,6 +62,13 @@ class FireflyClient:
                 return accounts
             page += 1
 
+    def list_transactions(self, start, end, page=1, limit=50):
+        """Read a bounded page of Firefly transaction groups for an inclusive date range."""
+        response = self._request("GET", "transactions", params={
+            "start": start.isoformat(), "end": end.isoformat(), "page": page, "limit": limit,
+        })
+        return response
+
     def create_account(self, payload):
         return self._request("POST", "accounts", json=payload)["data"]
 

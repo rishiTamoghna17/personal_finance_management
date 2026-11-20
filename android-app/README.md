@@ -1,6 +1,6 @@
 # My Finance Android app
 
-Native Android app in Kotlin and Jetpack Compose. The first slice connects to the private bridge, keeps the API token encrypted with Android Keystore, and lets the owner review and label unparsed messages. It does not post ledger entries.
+Native Android app in Kotlin and Jetpack Compose. The current P2.2 slice provides Home, Activity, Plans, Ask and Review screens, connects to the private bridge, and keeps the API token encrypted with Android Keystore. It does not post ledger entries.
 
 ## Design direction
 
@@ -9,8 +9,20 @@ Native Android app in Kotlin and Jetpack Compose. The first slice connects to th
 - FireflyMobile is another Kotlin client reference, but this app remains a separate client for the versioned bridge API: <https://github.com/emansih/FireflyMobile>.
 - No source code or assets are copied from those projects.
 
-## Build
+## Build in Docker
 
-Open this `android-app` directory in Android Studio and allow Gradle sync. A JDK and Android SDK are required; neither is installed in the current development environment, so an APK has not yet been built here.
+The Android SDK and Gradle are isolated in a separate Docker image; this does not install Java or Android tooling on the host or touch the finance service containers. From the repository root:
+
+```sh
+docker build --platform linux/amd64 -t my-finance-android-builder ./android-app
+mkdir -p ./android-app/dist
+docker run --rm --platform linux/amd64 \
+  -v "$PWD/android-app/dist:/out" \
+  -v "$HOME/.gradle:/root/.gradle" \
+  my-finance-android-builder \
+  sh -c 'gradle --no-daemon --no-watch-fs assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk /out/my-finance-p2.2-debug.apk'
+```
+
+The first build downloads the pinned Android command-line tools, Android API 37 platform/build tools, Gradle dependencies, and compiles the debug APK. Output: `android-app/dist/my-finance-p2.2-debug.apk`. This debug APK is for personal sideloading; it is not a signed release build.
 
 The app connects to `https://finance.tail1cee0a.ts.net` by default. The phone needs access to the owner's Tailscale network. Paste the existing bridge API token into the app once; the app stores the token encrypted with a key held by Android Keystore.

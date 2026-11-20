@@ -1,4 +1,6 @@
 from django.conf import settings
+import datetime as dt
+
 from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -73,3 +75,61 @@ class AccountsView(APIView):
             return Response({"detail": "Firefly is unavailable."}, status=502)
         observations = _bank_balances([str(i["id"]) for i in items])
         return Response({"accounts": [serialize_account(i, observations.get(str(i["id"]))) for i in items]})
+
+
+class TransactionsView(APIView):
+    """GET /api/v1/transactions - bounded, INR-only, read-only rows for the mobile client."""
+
+    def get(self, request):
+        try:
+            today = timezone.localdate()
+            start = dt.date.fromisoformat(request.query_params.get("start", (today - dt.timedelta(days=30)).isoformat()))
+            end = dt.date.fromisoformat(request.query_params.get("end", today.isoformat()))
+            page = max(1, int(request.query_params.get("page", "1")))
+            limit = max(1, min(50, int(request.query_params.get("limit", "50"))))
+            if start > end:
+                raise ValueError
+        except ValueError:
+            return Response({"detail": "Use valid start/end dates (YYYY-MM-DD), with start no later than end."}, status=400)
+
+        client = FireflyClient.from_settings()
+        if not client.has_token:
+            return Response({"detail": "FIREFLY_ACCESS_TOKEN is not set."}, status=503)
+        try:
+            body = client.list_transactions(start, end, page=page, limit=limit)
+        except FireflyError:
+            return Response({"detail": "Firefly is unavailable."}, status=502)
+
+        rows = []
+        for group in body.get("data", []):
+            attrs = group.get("attributes") or {}
+            for index, split in enumerate(attrs.get("transactions") or []):
+                if (split.get("currency_code") or attrs.get("currency_code") or "").upper() != "INR":
+                    continue
+                try:
+                    amount = abs(to_paise(split.get("amount", "0")))
+                except MoneyError:
+                    continue
+                rows.append({
+                    "id": str(split.get("transaction_journal_id") or f"{group.get('id', '')}-{index}"),
+                    "group_id": str(group.get("id", "")),
+                    "date": (split.get("date") or attrs.get("created_at") or "")[:10],
+                    "type": split.get("type") or attrs.get("transaction_type") or "unknown",
+                    "description": split.get("description") or attrs.get("group_title") or "Transaction",
+                    "payee": split.get("destination_name") if split.get("type") == "withdrawal" else split.get("source_name"),
+                    "category": split.get("category_name"),
+                    "source_account": split.get("source_name"),
+                    "destination_account": split.get("destination_name"),
+                    "currency": "INR",
+                    "amount_paise": amount,
+                })
+
+        pagination = body.get("meta", {}).get("pagination", {})
+        return Response({
+            "transactions": rows,
+            "page": int(pagination.get("current_page", page)),
+            "total_pages": int(pagination.get("total_pages", page)),
+            "total_items": int(pagination.get("total", len(rows))),
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+        })

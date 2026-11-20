@@ -68,6 +68,7 @@ Until Phase 2, SMS arrives from an Android SMS-forwarder app posting to /ingest/
 - Sideloaded personal Kotlin Android APK using Jetpack Compose, not a Play Store app.
 - Reads bank SMS on the device, drops OTPs on the device, sends the rest to the bridge. Queues offline and retries.
 - Screens: dashboard, transactions, goals, net worth, chat (the advisor). Digest and alerts arrive as phone notifications. Biometric lock.
+- The app's recent transaction screen uses an authenticated, read-only `GET /api/v1/transactions?start=YYYY-MM-DD&end=YYYY-MM-DD&page=1&limit=50` bridge route backed by Firefly's transaction list. Return one structured row per Firefly transaction split: group and split IDs, date, transaction type, description, payee, category, source/destination account names, INR currency, and positive integer `amount_paise`; transaction type carries direction. Paginate, cap `limit` at 50, and omit non-INR rows. Never return SMS/email body text. This route must not expose transaction writes, transfers or payment actions.
 - Kotlin is the owner's approved framework (2026-11-20).
 - The review screen can submit the feedback labels above and show whether the item remains open. Labels are corrections for classification, not approval to create a Firefly transaction.
 
