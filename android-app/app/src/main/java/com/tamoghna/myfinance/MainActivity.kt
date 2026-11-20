@@ -46,6 +46,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -167,7 +168,7 @@ private fun FinanceApp(credentials: BridgeCredentials) {
                 action()
             } catch (error: Exception) {
                 errorMessage = if (error is SocketTimeoutException) {
-                    "The server timed out. Check that Tailscale is connected, then tap Refresh."
+                    "The server timed out. Check that Tailscale is connected, then pull down to refresh."
                 } else {
                     error.message ?: "The request failed. Check the server connection and try again."
                 }
@@ -189,6 +190,16 @@ private fun FinanceApp(credentials: BridgeCredentials) {
         reviews.addAll(fresh)
         categoryQuestions.clear()
         categoryQuestions.addAll(categories)
+    }
+
+    fun refreshCurrentTab() {
+        when (tab) {
+            AppTab.Home -> loadHome()
+            AppTab.Transactions -> loadTransactions()
+            AppTab.Goals -> loadGoals()
+            AppTab.Review -> loadReviews()
+            AppTab.Chat -> Unit // Chat history is local to this app session.
+        }
     }
 
     fun select(next: AppTab) {
@@ -227,15 +238,6 @@ private fun FinanceApp(credentials: BridgeCredentials) {
                     Text(tab.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 }
                 TextButton(onClick = { showSettings = !showSettings }) { Text(if (showSettings) "Close" else "⚙ Setup") }
-                TextButton(enabled = !busy && credentials.hasToken(), onClick = {
-                    when (tab) {
-                        AppTab.Home -> loadHome()
-                        AppTab.Transactions -> loadTransactions()
-                        AppTab.Goals -> loadGoals()
-                        AppTab.Review -> loadReviews()
-                        AppTab.Chat -> Unit
-                    }
-                }) { Text(if (busy) "Loading…" else "Refresh") }
             }
 
             if (showSettings) {
@@ -273,16 +275,9 @@ private fun FinanceApp(credentials: BridgeCredentials) {
                 }
             }
 
-            when (tab) {
-                AppTab.Home -> HomeScreen(
-                    dashboard, busy,
-                    onTransactions = { select(AppTab.Transactions) },
-                    onReviews = { select(AppTab.Review) },
-                    onReconnect = { link -> uriHandler.openUri(link) },
-                )
-                AppTab.Transactions -> TransactionsScreen(transactionPage, busy, onPage = { loadTransactions(it) })
-                AppTab.Goals -> GoalsScreen(goalsData, busy)
-                AppTab.Chat -> ChatScreen(chat, messageInput, busy, onInput = { messageInput = it }, onSend = {
+            Box(Modifier.weight(1f)) {
+            if (tab == AppTab.Chat) {
+                ChatScreen(chat, messageInput, busy, onInput = { messageInput = it }, onSend = {
                     val prompt = messageInput.trim()
                     if (prompt.isNotEmpty() && !busy) {
                         val history = chat.toList()
@@ -294,6 +289,24 @@ private fun FinanceApp(credentials: BridgeCredentials) {
                         }
                     }
                 })
+            } else {
+            PullToRefreshBox(
+                isRefreshing = busy,
+                onRefresh = {
+                    if (credentials.hasToken()) refreshCurrentTab() else showSettings = true
+                },
+                modifier = Modifier.fillMaxSize(),
+            ) {
+            when (tab) {
+                AppTab.Home -> HomeScreen(
+                    dashboard, busy,
+                    onTransactions = { select(AppTab.Transactions) },
+                    onReviews = { select(AppTab.Review) },
+                    onReconnect = { link -> uriHandler.openUri(link) },
+                )
+                AppTab.Transactions -> TransactionsScreen(transactionPage, busy, onPage = { loadTransactions(it) })
+                AppTab.Goals -> GoalsScreen(goalsData, busy)
+                AppTab.Chat -> Unit
                 AppTab.Review -> ReviewScreen(
                     reviews = reviews,
                     history = feedbackHistory,
@@ -335,6 +348,9 @@ private fun FinanceApp(credentials: BridgeCredentials) {
                         connectionMessage = if (always) "Category saved and future payments to this payee will use it." else "Category saved to this payment."
                     } },
                 )
+            }
+            }
+            }
             }
         }
     }
@@ -889,7 +905,7 @@ private fun CategoryQuestionCard(question: CategoryQuestion, busy: Boolean, onAp
                 Text(if (always) "Save category and rule" else "Save category")
             }
             if (question.choices.isEmpty()) {
-                Text("No Firefly categories are available right now. Check the server connection and refresh.",
+                Text("No Firefly categories are available right now. Check the server connection, then pull down to refresh.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         }
