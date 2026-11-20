@@ -954,7 +954,7 @@ private fun AlertCard(alert: FinanceAlert, onReconnect: (String) -> Unit) {
 }
 
 @Composable
-private fun ReviewCard(item: ReviewMessage, enabled: Boolean, onLabel: (FeedbackType) -> Unit) {
+private fun ReviewCard(item: ReviewMessage, busy: Boolean, onLabel: (FeedbackType) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     ElevatedCard(shape = RoundedCornerShape(21.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -968,7 +968,7 @@ private fun ReviewCard(item: ReviewMessage, enabled: Boolean, onLabel: (Feedback
             Text(item.sentAt.take(16).replace('T', ' '), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (item.reason == "unparsed" || item.reason == "unknown_sender") {
                 if (item.feedback != null) Text("Saved label: ${feedbackTypes.firstOrNull { it.code == item.feedback }?.title ?: item.feedback} · ${item.status}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                Button(enabled = enabled, onClick = { expanded = true }) { Text("Correct message type") }
+                Button(enabled = !busy, onClick = { expanded = true }) { Text("Correct message type") }
                 androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     feedbackTypes.forEach { choice ->
                         androidx.compose.material3.DropdownMenuItem(text = { Text(choice.title) }, onClick = { expanded = false; onLabel(choice) })

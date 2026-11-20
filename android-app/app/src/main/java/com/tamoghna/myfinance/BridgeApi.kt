@@ -71,6 +71,8 @@ internal class BridgeApi(private val credentials: BridgeCredentials) {
         val rows = request("GET", "/api/v1/review?status=$status").optJSONArray("items") ?: JSONArray()
         (0 until rows.length()).mapNotNull { index ->
             val item = rows.optJSONObject(index) ?: return@mapNotNull null
+            // Category questions have their own payment card backed by /alerts.
+            if (item.optString("reason") == "category_needed") return@mapNotNull null
             val message = item.optJSONObject("message") ?: JSONObject()
             ReviewMessage(
                 id = item.optInt("id"),
