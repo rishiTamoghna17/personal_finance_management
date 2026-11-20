@@ -1,8 +1,11 @@
 package com.tamoghna.myfinance
 
 import android.os.Bundle
+import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -56,6 +60,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -69,6 +74,10 @@ import java.net.SocketTimeoutException
 import java.time.LocalDate
 import java.util.Currency
 import java.util.Locale
+import java.util.UUID
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 
 private val LedgerGreen = Color(0xFF176B4D)
 private val LedgerGreenDark = Color(0xFF104B38)
@@ -360,6 +369,9 @@ private fun HomeScreen(
     data: DashboardData?, busy: Boolean, onTransactions: () -> Unit, onReviews: () -> Unit,
     onReconnect: (String) -> Unit,
 ) {
+    val context = LocalContext.current
+    val walletStore = remember(context) { WalletCardStore(context) }
+    val walletCards = remember(walletStore) { mutableStateListOf<WalletCard>().apply { addAll(walletStore.load()) } }
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -444,8 +456,136 @@ private fun HomeScreen(
             item { OutlinedButton(onClick = onReviews, modifier = Modifier.fillMaxWidth()) { Text("Open review inbox") } }
             item { Spacer(Modifier.height(8.dp)) }
         }
+        item { PrivateWalletSection(walletCards, onAdd = { card -> walletCards.add(card); walletStore.save(walletCards) }, onDelete = { card -> walletCards.removeAll { it.id == card.id }; walletStore.save(walletCards) }) }
         if (busy && data == null) item { LoadingCard() }
     }
+}
+
+@Composable
+private fun PrivateWalletSection(cards: List<WalletCard>, onAdd: (WalletCard) -> Unit, onDelete: (WalletCard) -> Unit) {
+    var showEditor by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<WalletDraft?>(null) }
+    SectionHeading("My saved cards", "Private to this phone")
+    cards.forEach { card ->
+        WalletCardFace(card, onEdit = { editing = WalletDraft.from(card) }, onDelete = { onDelete(card) })
+    }
+    OutlinedButton(onClick = { editing = WalletDraft(); showEditor = true }, modifier = Modifier.fillMaxWidth()) { Text("Scan or add a card") }
+    Text("Manual display balances stay on this phone and are not included in Firefly or net worth.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (editing != null) WalletCardEditor(
+        initial = editing!!,
+        onDismiss = { editing = null; showEditor = false },
+        onSave = { card -> onAdd(card); editing = null; showEditor = false },
+        onUpdate = { card -> onDelete(card); onAdd(card); editing = null },
+    )
+}
+
+private data class WalletDraft(
+    val id: String = UUID.randomUUID().toString(),
+    val nickname: String = "", val issuer: String = "", val color: Long = 0xFF263A63,
+    val lastFour: String = "", val expiry: String = "", val balance: String = "",
+    val isEditing: Boolean = false,
+) {
+    fun toCard(): WalletCard {
+        val paise = BigDecimal(balance.trim()).setScale(2, java.math.RoundingMode.UNNECESSARY).movePointRight(2).longValueExact()
+        return WalletCard(id, nickname.trim(), issuer.trim(), color, lastFour.filter(Char::isDigit).takeLast(4), expiry.trim(), paise)
+    }
+    companion object {
+        fun from(card: WalletCard) = WalletDraft(card.id, card.nickname, card.issuer, card.color, card.lastFour, card.expiry, BigDecimal.valueOf(card.balancePaise, 2).toPlainString(), true)
+    }
+}
+
+@Composable
+private fun WalletCardFace(card: WalletCard, onEdit: () -> Unit, onDelete: () -> Unit) {
+    var confirmDelete by remember { mutableStateOf(false) }
+    Surface(shape = RoundedCornerShape(22.dp), color = Color(card.color), modifier = Modifier.fillMaxWidth().height(168.dp)) {
+        Box {
+            Box(Modifier.size(145.dp).align(Alignment.TopEnd).offset(x = 40.dp, y = (-45).dp).background(Color.White.copy(alpha = .10f), CircleShape))
+            Column(Modifier.fillMaxSize().padding(17.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(card.issuer.uppercase(), color = Color.White, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Text("•••• ${card.lastFour.ifBlank { "—" }}", color = Color.White.copy(alpha = .86f), style = MaterialTheme.typography.labelLarge)
+                }
+                Column {
+                    Text(card.nickname, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("${card.expiry.takeIf { it.isNotBlank() }?.let { "EXP $it  ·  " } ?: ""}MANUAL DISPLAY BALANCE", color = Color.White.copy(alpha = .75f), style = MaterialTheme.typography.labelSmall)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(formatInr(card.balancePaise), color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                        TextButton(onClick = onEdit) { Text("Edit", color = Color.White) }
+                        TextButton(onClick = { confirmDelete = true }) { Text("Remove", color = Color.White) }
+                    }
+                }
+            }
+        }
+    }
+    if (confirmDelete) AlertDialog(onDismissRequest = { confirmDelete = false }, title = { Text("Remove saved card?") }, text = { Text("This removes its encrypted details from this phone only.") }, confirmButton = { TextButton(onClick = { confirmDelete = false; onDelete() }) { Text("Remove") } }, dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } })
+}
+
+@Composable
+private fun WalletCardEditor(initial: WalletDraft, onDismiss: () -> Unit, onSave: (WalletCard) -> Unit, onUpdate: (WalletCard) -> Unit) {
+    val context = LocalContext.current
+    var draft by remember(initial.id) { mutableStateOf(initial) }
+    var error by remember { mutableStateOf("") }
+    var scanning by remember { mutableStateOf(false) }
+    val recognizer = remember { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
+        if (bitmap == null) { scanning = false; return@rememberLauncherForActivityResult }
+        val image = InputImage.fromBitmap(bitmap, 0)
+        recognizer.process(image)
+            .addOnSuccessListener { result ->
+                // OCR text and the camera bitmap remain transient. Only selected, masked fields reach UI state.
+                val parsed = parseCardText(result.text)
+                draft = draft.copy(
+                    issuer = parsed.issuer.ifBlank { draft.issuer },
+                    nickname = parsed.name.ifBlank { draft.nickname },
+                    lastFour = parsed.lastFour.ifBlank { draft.lastFour },
+                    expiry = parsed.expiry.ifBlank { draft.expiry },
+                )
+                scanning = false
+            }
+            .addOnFailureListener { error = "Could not read the card. Enter the details manually."; scanning = false }
+    }
+    val colors = listOf(0xFF263A63, 0xFF104B38, 0xFF683B75, 0xFF8A3B32, 0xFF1B5260, 0xFF33343C)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initial.isEditing) "Edit saved card" else "Add a saved card") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                if (!initial.isEditing) OutlinedButton(enabled = !scanning, onClick = { error = ""; scanning = true; camera.launch(null) }, modifier = Modifier.fillMaxWidth()) { Text(if (scanning) "Reading card…" else "Scan card with camera") }
+                Text("Scan the front only. The image and full number are not saved.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(draft.nickname, { draft = draft.copy(nickname = it) }, label = { Text("Nickname") }, singleLine = true)
+                OutlinedTextField(draft.issuer, { draft = draft.copy(issuer = it) }, label = { Text("Issuer / bank") }, singleLine = true)
+                OutlinedTextField(draft.lastFour, { v -> draft = draft.copy(lastFour = v.filter(Char::isDigit).takeLast(4)) }, label = { Text("Last four digits (optional)") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(draft.expiry, { draft = draft.copy(expiry = it.take(7)) }, label = { Text("Expiry MM/YY (optional)") }, singleLine = true)
+                OutlinedTextField(draft.balance, { draft = draft.copy(balance = it) }, label = { Text("Manual balance in ₹") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                Text("Display color", style = MaterialTheme.typography.labelLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) { colors.forEach { color -> Surface(onClick = { draft = draft.copy(color = color) }, shape = CircleShape, color = Color(color), modifier = Modifier.size(30.dp), border = androidx.compose.foundation.BorderStroke(if (draft.color == color) 3.dp else 0.dp, MaterialTheme.colorScheme.primary)) {} } }
+                if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = { TextButton(onClick = {
+            try {
+                require(draft.nickname.isNotBlank() && draft.issuer.isNotBlank()) { "Enter a nickname and issuer." }
+                require(draft.lastFour.isEmpty() || draft.lastFour.matches(Regex("\\d{4}"))) { "Enter only the last four digits." }
+                require(draft.balance.isNotBlank()) { "Enter the balance in rupees (use 0 if unknown)." }
+                val card = draft.toCard()
+                if (initial.isEditing) onUpdate(card) else onSave(card)
+            } catch (_: Exception) { error = "Check the fields. Balance must be a valid amount with at most two decimal places." }
+        }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+private data class ScannedCardFields(val issuer: String = "", val name: String = "", val lastFour: String = "", val expiry: String = "")
+
+private fun parseCardText(text: String): ScannedCardFields {
+    val upper = text.uppercase(Locale.ROOT)
+    val issuer = listOf("HDFC BANK", "AXIS BANK", "ICICI BANK", "STATE BANK OF INDIA", "SBI", "HSBC", "KOTAK", "IDFC FIRST", "INDUSIND", "AMERICAN EXPRESS").firstOrNull { upper.contains(it) }.orEmpty()
+    val pan = Regex("(?:\\d[ -]?){13,19}").findAll(text).map { it.value.filter(Char::isDigit) }.firstOrNull { it.length in 13..19 }.orEmpty()
+    val expiry = Regex("(?<!\\d)(0[1-9]|1[0-2])\\s*[/\\-]\\s*(\\d{2}|\\d{4})(?!\\d)").find(text)?.let { "${it.groupValues[1]}/${it.groupValues[2].takeLast(2)}" }.orEmpty()
+    val ignored = Regex("(BANK|VISA|MASTERCARD|MASTER CARD|RUPAY|DEBIT|CREDIT|CARD|VALID|THRU|EXPIRY|PLATINUM|SIGNATURE|WORLD|CONTACTLESS|\\d)")
+    val name = text.lineSequence().map { it.trim().replace(Regex("[^A-Za-z .'-]"), "").trim() }
+        .firstOrNull { it.length in 4..35 && it.any(Char::isLetter) && !ignored.containsMatchIn(it.uppercase(Locale.ROOT)) }.orEmpty()
+    return ScannedCardFields(issuer = issuer, name = name, lastFour = pan.takeLast(4), expiry = expiry)
 }
 
 @Composable

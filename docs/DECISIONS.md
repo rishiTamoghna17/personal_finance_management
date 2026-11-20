@@ -1,5 +1,7 @@
 # Decisions
 
+- 2026-11-20 · P2 wallet scanner: use the Android system camera and on-device OCR only to suggest issuer, nickname/cardholder, last four, and expiry; save only those fields plus chosen color and manually entered display balance in encrypted phone-local storage · never retain/send a card image, full card number, CVV or OCR text; manual wallet balances do not alter Firefly or net worth · owner
+
 - 2026-11-20 · When Gmail acct1 and Drive backups use the same Google identity and OAuth client, renew their existing `gmail.readonly` and `drive.file` permissions in one consent flow · avoid asking the owner to sign in twice; do not add scopes, and continue validating the same Google account · owner
 - 2026-11-20 · Start P2 in Kotlin with Jetpack Compose and add owner-feedback learning for unparsed bank messages · the owner approved the spec change and Kotlin; feedback is stored against encrypted source messages and may guide only masked local examples, never transaction posting · owner
 - 2026-11-20 · Use Waterfly III's Material 3 dashboard/list patterns and Firefly III's green ledger hierarchy as visual references for the native Kotlin APK; do not copy source or assets · Waterfly is Flutter and FireflyMobile is an older Kotlin client, while this app needs the bridge's review/feedback flow · implementation choice
