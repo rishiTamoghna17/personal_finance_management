@@ -45,6 +45,16 @@ internal data class ReviewMessage(
     val sentAt: String,
 )
 
+internal data class CategoryQuestion(
+    val id: Int,
+    val payee: String,
+    val amountPaise: Long,
+    val date: String,
+    val account: String,
+    val suggested: List<String>,
+    val choices: List<String>,
+)
+
 internal data class TransactionsPage(
     val items: List<FinanceTransaction>,
     val page: Int,

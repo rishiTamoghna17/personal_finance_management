@@ -15,7 +15,7 @@ RUN apt-get update \
     && mv /tmp/android-tools/cmdline-tools "${ANDROID_SDK_ROOT}/cmdline-tools/latest" \
     && rm -rf /tmp/android-tools /tmp/android-tools.zip \
     && yes | sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --licenses >/dev/null \
-    && sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" "platform-tools" "platforms;android-37.2" "build-tools;37.0.0"
+    && sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" "platform-tools" "platforms;android-37.0" "build-tools;36.0.0" "build-tools;37.0.0"
 
 WORKDIR /workspace
 COPY . /workspace

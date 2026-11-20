@@ -1,6 +1,6 @@
 # My Finance Android app
 
-Native Android app in Kotlin and Jetpack Compose. The current P2.2 slice provides Home, Activity, Plans, Ask and Review screens, connects to the private bridge, and keeps the API token encrypted with Android Keystore. It does not post ledger entries.
+Native Android app in Kotlin and Jetpack Compose. The current P2.3 slice provides Home, Activity, Plans, Ask and Review screens, including category questions backed by your existing Firefly categories and optional payee rules. The app connects to the private bridge and keeps the API token encrypted with Android Keystore. It does not create or post ledger entries.
 
 ## Design direction
 
@@ -20,9 +20,9 @@ docker run --rm --platform linux/amd64 \
   -v "$PWD/android-app/dist:/out" \
   -v "$HOME/.gradle:/root/.gradle" \
   my-finance-android-builder \
-  sh -c 'gradle --no-daemon --no-watch-fs assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk /out/my-finance-p2.2-debug.apk'
+  sh -c 'gradle --no-daemon --no-watch-fs assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk /out/my-finance-p2.3-debug.apk'
 ```
 
-The first build downloads the pinned Android command-line tools, Android API 37 platform/build tools, Gradle dependencies, and compiles the debug APK. Output: `android-app/dist/my-finance-p2.2-debug.apk`. This debug APK is for personal sideloading; it is not a signed release build.
+The first build downloads the pinned Android command-line tools, Android API 37 platform/build tools, Gradle dependencies, and compiles the debug APK. Output: `android-app/dist/my-finance-p2.3-debug.apk`. This debug APK is for personal sideloading; it is not a signed release build.
 
 The app connects to `https://finance.tail1cee0a.ts.net` by default. The phone needs access to the owner's Tailscale network. Paste the existing bridge API token into the app once; the app stores the token encrypted with a key held by Android Keystore.

@@ -18,6 +18,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -90,6 +93,7 @@ private fun FinanceApp(credentials: BridgeCredentials) {
     var transactionPage by remember { mutableStateOf<TransactionsPage?>(null) }
     var goalsData by remember { mutableStateOf<GoalsData?>(null) }
     val reviews = remember { mutableStateListOf<ReviewMessage>() }
+    val categoryQuestions = remember { mutableStateListOf<CategoryQuestion>() }
     val chat = remember { mutableStateListOf<Pair<String, String>>() }
     var server by remember { mutableStateOf(credentials.serverUrl()) }
     var tokenInput by remember { mutableStateOf("") }
@@ -121,8 +125,11 @@ private fun FinanceApp(credentials: BridgeCredentials) {
     fun loadGoals() = runRequest { goalsData = api.goals() }
     fun loadReviews() = runRequest {
         val fresh = api.reviews()
+        val categories = api.categoryQuestions()
         reviews.clear()
         reviews.addAll(fresh)
+        categoryQuestions.clear()
+        categoryQuestions.addAll(categories)
     }
 
     fun select(next: AppTab) {
@@ -131,7 +138,7 @@ private fun FinanceApp(credentials: BridgeCredentials) {
             AppTab.Home -> if (dashboard == null && credentials.hasToken()) loadHome()
             AppTab.Transactions -> if (transactionPage == null && credentials.hasToken()) loadTransactions()
             AppTab.Goals -> if (goalsData == null && credentials.hasToken()) loadGoals()
-            AppTab.Review -> if (reviews.isEmpty() && credentials.hasToken()) loadReviews()
+            AppTab.Review -> if (credentials.hasToken()) loadReviews()
             AppTab.Chat -> Unit
         }
     }
@@ -223,15 +230,28 @@ private fun FinanceApp(credentials: BridgeCredentials) {
                         }
                     }
                 })
-                AppTab.Review -> ReviewScreen(reviews, busy, onLabel = { item, label ->
-                    runRequest {
+                AppTab.Review -> ReviewScreen(
+                    reviews = reviews,
+                    categories = categoryQuestions,
+                    busy = busy,
+                    onLabel = { item, label -> runRequest {
                         api.label(item.id, label.code)
                         val fresh = api.reviews()
                         reviews.clear()
                         reviews.addAll(fresh)
                         connectionMessage = "Saved your correction: ${label.title}."
-                    }
-                })
+                    } },
+                    onCategory = { question, category, always -> runRequest {
+                        api.chooseCategory(question.id, category, always)
+                        val updatedReviews = api.reviews()
+                        val updatedCategories = api.categoryQuestions()
+                        reviews.clear()
+                        reviews.addAll(updatedReviews)
+                        categoryQuestions.clear()
+                        categoryQuestions.addAll(updatedCategories)
+                        connectionMessage = if (always) "Category saved and future payments to this payee will use it." else "Category saved to this payment."
+                    } },
+                )
             }
         }
     }
@@ -453,16 +473,60 @@ private fun ChatScreen(
 }
 
 @Composable
-private fun ReviewScreen(items: List<ReviewMessage>, busy: Boolean, onLabel: (ReviewMessage, FeedbackType) -> Unit) {
+private fun ReviewScreen(
+    reviews: List<ReviewMessage>,
+    categories: List<CategoryQuestion>,
+    busy: Boolean,
+    onLabel: (ReviewMessage, FeedbackType) -> Unit,
+    onCategory: (CategoryQuestion, String, Boolean) -> Unit,
+) {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { Text("Owner review queue · corrections help future local classification", modifier = Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodySmall, color = MutedText) }
-        if (items.isEmpty()) {
-            item { EmptyCard("No open review items", "Unparsed or ambiguous messages will appear here for you to review.") }
+        item { Text("Categorize payments and correct unclear messages", modifier = Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodySmall, color = MutedText) }
+        if (categories.isNotEmpty()) item { SectionHeading("Payment categories", "${categories.size} waiting") }
+        items(categories, key = { "category-${it.id}" }) { question ->
+            CategoryQuestionCard(question, busy) { name, always -> onCategory(question, name, always) }
+        }
+        if (reviews.isNotEmpty()) item { SectionHeading("Message review", "Corrections guide future local classification") }
+        if (reviews.isEmpty() && categories.isEmpty()) {
+            item { EmptyCard("Nothing needs review", "Unparsed messages and uncategorized payments will appear here.") }
             if (busy) item { LoadingCard() }
         } else {
-            items(items, key = { it.id }) { item -> ReviewCard(item, busy) { label -> onLabel(item, label) } }
+            items(reviews, key = { "message-${it.id}" }) { item -> ReviewCard(item, busy) { label -> onLabel(item, label) } }
         }
         item { Spacer(Modifier.height(8.dp)) }
+    }
+}
+
+@Composable
+private fun CategoryQuestionCard(question: CategoryQuestion, enabled: Boolean, onApply: (String, Boolean) -> Unit) {
+    var menuOpen by remember(question.id) { mutableStateOf(false) }
+    var selected by remember(question.id) { mutableStateOf(question.suggested.firstOrNull().orEmpty()) }
+    var always by remember(question.id) { mutableStateOf(false) }
+    ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(question.payee.ifBlank { "Uncategorized payment" }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text("${formatInr(question.amountPaise)} · ${question.date} · ${question.account}", style = MaterialTheme.typography.bodySmall, color = MutedText)
+            if (question.suggested.isNotEmpty()) {
+                Text("Suggested from your past choices: ${question.suggested.joinToString()}", style = MaterialTheme.typography.bodySmall, color = LedgerGreenDark)
+            }
+            androidx.compose.foundation.layout.Box {
+                OutlinedButton(enabled = enabled && question.choices.isNotEmpty(), onClick = { menuOpen = true }) {
+                    Text(selected.ifBlank { "Choose a category" })
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    question.choices.forEach { choice ->
+                        DropdownMenuItem(text = { Text(choice) }, onClick = { selected = choice; menuOpen = false })
+                    }
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = always, onCheckedChange = { always = it }, enabled = enabled)
+                Text("Use for future payments to this payee", style = MaterialTheme.typography.bodySmall)
+            }
+            Button(enabled = enabled && selected.isNotBlank(), onClick = { onApply(selected, always) }) {
+                Text(if (always) "Save category and rule" else "Save category")
+            }
+        }
     }
 }
 

@@ -81,6 +81,26 @@ internal class BridgeApi(private val credentials: BridgeCredentials) {
         }
     }
 
+    suspend fun categoryQuestions(): List<CategoryQuestion> = withContext(Dispatchers.IO) {
+        val rows = request("GET", "/api/v1/alerts").optJSONArray("alerts") ?: JSONArray()
+        (0 until rows.length()).mapNotNull { index ->
+            val alert = rows.optJSONObject(index) ?: return@mapNotNull null
+            if (alert.optString("type") != "category_needed") return@mapNotNull null
+            val data = alert.optJSONObject("data") ?: return@mapNotNull null
+            CategoryQuestion(
+                id = data.optInt("review_id"), payee = data.optString("payee"),
+                amountPaise = data.optLong("amount_paise"), date = data.optString("date"),
+                account = data.optString("account"), suggested = data.optJSONArray("suggested").toStringList(),
+                choices = data.optJSONArray("choices").toStringList(),
+            )
+        }
+    }
+
+    suspend fun chooseCategory(id: Int, category: String, always: Boolean) = withContext(Dispatchers.IO) {
+        request("POST", "/api/v1/review/$id/category", JSONObject()
+            .put("category", category).put("always", always))
+    }
+
     suspend fun label(id: Int, label: String) = withContext(Dispatchers.IO) {
         request("POST", "/api/v1/review/$id/feedback", JSONObject().put("label", label))
     }
@@ -157,4 +177,8 @@ internal class BridgeApi(private val credentials: BridgeCredentials) {
         val row = rows.optJSONObject(index) ?: return@mapNotNull null
         FinanceAlert(row.optString("type"), row.optString("severity"), row.optString("message"))
     }
+
+    private fun JSONArray?.toStringList(): List<String> = this?.let { values ->
+        (0 until values.length()).mapNotNull { values.optString(it).takeIf(String::isNotBlank) }
+    }.orEmpty()
 }
