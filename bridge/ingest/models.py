@@ -148,13 +148,13 @@ class MessageFeedback(models.Model):
     """Owner's label for an encrypted message; used only as a masked local example."""
 
     class Label(models.TextChoices):
-        TRANSACTION = "transaction_alert"
-        PROMOTION = "promotion"
-        CARD_PAYMENT = "card_bill_payment"
-        FAILED = "failed_payment"
-        REFUND = "refund_reversal"
-        REMINDER = "due_reminder"
-        OTHER = "other"
+        TRANSACTION = "transaction_alert", "Transaction"
+        PROMOTION = "promotion", "Promotion"
+        CARD_PAYMENT = "card_bill_payment", "Card Bill Payment"
+        FAILED = "failed_payment", "Failed Payment"
+        REFUND = "refund_reversal", "Refund or Reversal"
+        REMINDER = "due_reminder", "Due Reminder"
+        OTHER = "other", "Other"
 
     raw = models.OneToOneField(RawMessage, on_delete=models.CASCADE, related_name="feedback")
     label = models.CharField(max_length=32, choices=Label.choices)
