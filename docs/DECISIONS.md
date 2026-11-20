@@ -1,5 +1,6 @@
 # Decisions
 
+- 2026-11-21 · Bind-mount the live Android project into the Docker builder and persist its debug signing key on the host · prevent stale APKs from the builder image's COPY snapshot and keep update signatures stable across builds · implementation decision
 - 2026-11-21 · Display app version name and build number in the Home header and increment Android versionCode for each installable update · make it obvious which APK is installed during phone verification · owner
 - 2026-11-20 · Use a custom adaptive wallet icon in the app's green/mint palette, with a monochrome layer for themed Android icons · make My Finance recognizable in the launcher without adding an icon dependency · owner
 - 2026-11-20 · Show each card's masked last four digits and expiry on the wallet face; when expiry is unavailable, label it as not set rather than guessing · the owner wants every card face to show these familiar details, while card data remains minimal · owner
