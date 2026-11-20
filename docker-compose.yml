@@ -37,6 +37,7 @@ x-bridge: &bridge
     LLM_API_KEY: ${LLM_API_KEY:-}
     GOOGLE_OAUTH_TESTING: ${GOOGLE_OAUTH_TESTING:-1}
     GDRIVE_CONNECTED_AT: ${GDRIVE_CONNECTED_AT:-}
+    GOOGLE_DRIVE_GMAIL_TAG: ${GOOGLE_DRIVE_GMAIL_TAG:-acct1}
     PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
     GOOGLE_WEB_CLIENT_1_ID: ${GOOGLE_WEB_CLIENT_1_ID:-}
     GOOGLE_WEB_CLIENT_1_SECRET: ${GOOGLE_WEB_CLIENT_1_SECRET:-}
@@ -50,12 +51,24 @@ x-bridge: &bridge
     - backup_status:/backup-status:ro  # last backup result, for the health alert (M7)
     - backup_secrets:/backup-secrets   # Drive sign-in renewed from the phone, handed to the backup job (M7)
   depends_on:
+    backup-secrets-init:
+      condition: service_completed_successfully
     postgres:
       condition: service_healthy
     redis:
       condition: service_healthy
 
 services:
+  # The bridge runs as UID 10001; initialize the owner-only shared OAuth handoff volume for that user.
+  backup-secrets-init:
+    image: personal-finance-bridge:local
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c"]
+    command: "chown 10001:999 /backup-secrets && chmod 0700 /backup-secrets"
+    restart: "no"
+    volumes:
+      - backup_secrets:/backup-secrets
+
   postgres:
     logging: *logging
     image: postgres:17-alpine

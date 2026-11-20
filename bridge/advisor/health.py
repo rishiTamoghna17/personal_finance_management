@@ -91,7 +91,9 @@ def reconnect_reminders(now=None):
     out = []
     labels = {"drive": "Google Drive (backups)"}
     for connection, connected_at in reconnect.connections():
-        label = labels.get(connection, f"Gmail ({connection.split(':', 1)[-1]})")
+        combined_tag = reconnect.combined_gmail_tag(connection)
+        label = (f"Gmail ({combined_tag}) and Google Drive backups" if combined_tag
+                 else labels.get(connection, f"Gmail ({connection.split(':', 1)[-1]})"))
         link = reconnect.live_link(connection, now) if reconnect.enabled() else None
         how = "tap the link" if link else "sh scripts/google-reconnect.sh"
         alert = _reconnect_alert(label, connected_at, how, now)

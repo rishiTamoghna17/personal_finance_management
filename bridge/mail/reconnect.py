@@ -45,23 +45,70 @@ def enabled():
 
 
 def client_for(connection):
-    key = settings.GOOGLE_CONNECTION_CLIENT.get(connection.split(":")[-1], "")
+    tag = combined_gmail_tag(connection)
+    if tag:
+        gmail_key = settings.GOOGLE_CONNECTION_CLIENT.get(tag, "")
+        drive_key = settings.GOOGLE_CONNECTION_CLIENT.get("drive", "")
+        if not gmail_key or gmail_key != drive_key:
+            raise ReconnectError("Gmail and Drive do not share the same OAuth client")
+        key = gmail_key
+    else:
+        key = settings.GOOGLE_CONNECTION_CLIENT.get(connection.split(":")[-1], "")
     client_id, client_secret = settings.GOOGLE_WEB_CLIENTS.get(key, ("", ""))
     return key, client_id, client_secret
 
 
+def combined_gmail_tag(connection=None):
+    """Return the Gmail tag for a combined link, or the configured Gmail tag eligible for grouping."""
+    if connection is not None:
+        prefix = "gmail:"
+        suffix = "+drive"
+        if connection.startswith(prefix) and connection.endswith(suffix):
+            return connection[len(prefix):-len(suffix)]
+        return ""
+    tag = getattr(settings, "GOOGLE_DRIVE_GMAIL_TAG", "")
+    if not tag:
+        return ""
+    account = GmailAccount.objects.filter(tag=tag, enabled=True).first()
+    if account is None:
+        return ""
+    gmail_key = settings.GOOGLE_CONNECTION_CLIENT.get(tag, "")
+    drive_key = settings.GOOGLE_CONNECTION_CLIENT.get("drive", "")
+    if not gmail_key or gmail_key != drive_key:
+        return ""
+    drive = GoogleCredential.objects.filter(name="drive").first()
+    if drive and account.email_hash and drive.email_hash and account.email_hash != drive.email_hash:
+        return ""
+    if not drive and not settings.GDRIVE_CONNECTED_AT:
+        return ""
+    return tag
+
+
 def scopes_for(connection):
-    return DRIVE_SCOPES if connection == "drive" else GMAIL_SCOPES
+    if connection == "drive":
+        return DRIVE_SCOPES
+    if combined_gmail_tag(connection):
+        return GMAIL_SCOPES + DRIVE_SCOPES
+    return GMAIL_SCOPES
 
 
 def connections():
     """[(connection, connected_at)] for every Google sign-in the bridge depends on."""
-    out = [(f"gmail:{a.tag}", a.connected_at or a.created_at) for a in GmailAccount.objects.filter(enabled=True)]
+    out = []
     drive = GoogleCredential.objects.filter(name="drive").first()
-    if drive:
-        out.append(("drive", drive.connected_at))
-    elif settings.GDRIVE_CONNECTED_AT:
-        out.append(("drive", dt.datetime.fromisoformat(settings.GDRIVE_CONNECTED_AT.replace("Z", "+00:00"))))
+    drive_at = drive.connected_at if drive else None
+    if drive_at is None and settings.GDRIVE_CONNECTED_AT:
+        drive_at = dt.datetime.fromisoformat(settings.GDRIVE_CONNECTED_AT.replace("Z", "+00:00"))
+    combined_tag = combined_gmail_tag()
+    for account in GmailAccount.objects.filter(enabled=True):
+        connected_at = account.connected_at or account.created_at
+        if account.tag == combined_tag:
+            connected_at = min(connected_at, drive_at)
+            out.append((f"gmail:{account.tag}+drive", connected_at))
+        else:
+            out.append((f"gmail:{account.tag}", connected_at))
+    if drive_at and not combined_tag:
+        out.append(("drive", drive_at))
     return out
 
 
@@ -85,6 +132,9 @@ def prepare_links(now=None):
             continue
         if not client_for(connection)[1]:
             continue  # no web client configured for this Google project yet
+        tag = combined_gmail_tag(connection)
+        if tag:
+            ReconnectLink.objects.filter(connection__in=[f"gmail:{tag}", "drive"], used_at__isnull=True).update(used_at=now)
         token = secrets.token_urlsafe(32)
         ReconnectLink.objects.create(connection=connection, token_hash=_hash(token), token_encrypted=encrypt(token),
                                      expires_at=now + dt.timedelta(hours=settings.RECONNECT_LINK_HOURS))
@@ -154,6 +204,7 @@ def finish(state, code, now=None, address_of=None):
     if link is None or link.used_at or link.expires_at <= now or not link.code_verifier:
         raise ReconnectError("this sign-in link has expired or was already used")
     connection = link.connection
+    combined_tag = combined_gmail_tag(connection)
     flow = _flow(connection, code_verifier=decrypt(link.code_verifier))
     flow.fetch_token(code=code)
     creds = flow.credentials
@@ -165,13 +216,25 @@ def finish(state, code, now=None, address_of=None):
     digest = email_hash(address)
     with transaction.atomic():
         if connection.startswith("gmail:"):
-            account = GmailAccount.objects.select_for_update().get(tag=connection.split(":", 1)[1])
+            tag = combined_tag or connection.split(":", 1)[1]
+            account = GmailAccount.objects.select_for_update().get(tag=tag)
             if account.email_hash and account.email_hash != digest:
                 raise ReconnectError("that is a different Google account from the one connected before; nothing saved")
             account.token_encrypted = encrypt(creds.to_json())
             account.email_hash, account.connected_at = digest, now
             account.save(update_fields=["token_encrypted", "email_hash", "connected_at"])
-            label = f"Gmail ({account.tag})"
+            if combined_tag:
+                existing = GoogleCredential.objects.select_for_update().filter(name="drive").first()
+                if existing and existing.email_hash and existing.email_hash != digest:
+                    raise ReconnectError("that is a different Google account from the one used for backups; nothing saved")
+                client_key = client_for(connection)[0]
+                GoogleCredential.objects.update_or_create(
+                    name="drive", defaults={"token_encrypted": encrypt(creds.to_json()), "client": client_key,
+                                            "email_hash": digest, "connected_at": now})
+                write_backup_token(client_key, creds)
+                label = f"Gmail ({account.tag}) and Google Drive backups"
+            else:
+                label = f"Gmail ({account.tag})"
         else:
             existing = GoogleCredential.objects.filter(name="drive").first()
             if existing and existing.email_hash and existing.email_hash != digest:
@@ -184,5 +247,8 @@ def finish(state, code, now=None, address_of=None):
             label = "Google Drive (backups)"
         link.used_at = now
         link.save(update_fields=["used_at"])
-        ReconnectLink.objects.filter(connection=connection, used_at__isnull=True).update(used_at=now)
+        invalidated = [connection]
+        if combined_tag:
+            invalidated.extend([f"gmail:{combined_tag}", "drive"])
+        ReconnectLink.objects.filter(connection__in=invalidated, used_at__isnull=True).update(used_at=now)
     return label

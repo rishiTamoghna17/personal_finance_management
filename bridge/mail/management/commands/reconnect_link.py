@@ -23,7 +23,11 @@ class Command(BaseCommand):
     def handle(self, *args, connection, **options):
         if not reconnect.enabled():
             raise CommandError("PUBLIC_BASE_URL must be the https:// Tailscale address")
-        if connection not in dict(reconnect.connections()):
+        available = dict(reconnect.connections())
+        combined_tag = reconnect.combined_gmail_tag()
+        if combined_tag and connection == f"gmail:{combined_tag}":
+            connection = f"gmail:{combined_tag}+drive"
+        if connection not in available:
             raise CommandError(f"unknown connection; one of {', '.join(dict(reconnect.connections()))}")
         if not reconnect.client_for(connection)[1]:
             raise CommandError("no web sign-in client configured for this connection")

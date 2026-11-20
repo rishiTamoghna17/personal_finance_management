@@ -1,5 +1,6 @@
 # Decisions
 
+- 2026-11-20 · When Gmail acct1 and Drive backups use the same Google identity and OAuth client, renew their existing `gmail.readonly` and `drive.file` permissions in one consent flow · avoid asking the owner to sign in twice; do not add scopes, and continue validating the same Google account · owner
 - 2026-11-20 · Start P2 in Kotlin with Jetpack Compose and add owner-feedback learning for unparsed bank messages · the owner approved the spec change and Kotlin; feedback is stored against encrypted source messages and may guide only masked local examples, never transaction posting · owner
 - 2026-11-20 · Use Waterfly III's Material 3 dashboard/list patterns and Firefly III's green ledger hierarchy as visual references for the native Kotlin APK; do not copy source or assets · Waterfly is Flutter and FireflyMobile is an older Kotlin client, while this app needs the bridge's review/feedback flow · implementation choice
 - 2026-11-20 · Add authenticated read-only `GET /api/v1/transactions` with bounded pagination and structured INR ledger rows for the P2 app · P2.2 includes a transactions screen, but the bridge had no transaction-list endpoint; Firefly remains the ledger and all amounts stay integer paise · owner-approved P2 scope

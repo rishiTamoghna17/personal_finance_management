@@ -148,6 +148,9 @@ GOOGLE_WEB_CLIENTS = {
 GOOGLE_CONNECTION_CLIENT = dict(
     pair.strip().split("=", 1) for pair in env("GOOGLE_CONNECTION_CLIENT", "acct1=1,acct2=2,drive=1").split(",") if "=" in pair
 )
+# The owner confirmed Gmail acct1 and Drive backups use the same Google identity. The reconnect flow may renew
+# their existing scopes together when both use the same OAuth client.
+GOOGLE_DRIVE_GMAIL_TAG = env("GOOGLE_DRIVE_GMAIL_TAG", "acct1")
 RECONNECT_LINK_HOURS = 24
 BACKUP_SECRETS_DIR = Path(env("BACKUP_SECRETS_DIR", "/backup-secrets"))  # Drive sign-in handed to the backup job
 if PUBLIC_BASE_URL:
