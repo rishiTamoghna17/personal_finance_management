@@ -1,6 +1,6 @@
 # My Finance Android app
 
-Native Android app in Kotlin and Jetpack Compose. The current P2.3 slice provides Home, Activity, Plans, Ask and Review screens, including a tappable stacked-card wallet for credit cards, category questions backed by your existing Firefly categories, and optional payee rules. The app connects to the private bridge and keeps the API token encrypted with Android Keystore. It does not create or post ledger entries.
+Native Android app in Kotlin and Jetpack Compose. The current P2.3 slice provides Home, Activity, Plans, Ask and Review screens, including a tappable stacked-card wallet for credit cards, category questions backed by your existing Firefly categories, and optional payee rules. It follows the phone's system light/dark setting. The app connects to the private bridge and keeps the API token encrypted with Android Keystore. It does not create or post ledger entries.
 
 ## Design direction
 

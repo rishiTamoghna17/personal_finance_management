@@ -3,6 +3,7 @@ package com.tamoghna.myfinance
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,8 +40,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -67,10 +71,7 @@ import java.util.Locale
 
 private val LedgerGreen = Color(0xFF176B4D)
 private val LedgerGreenDark = Color(0xFF104B38)
-private val WarmCanvas = Color(0xFFF7F6F1)
-private val SoftGreen = Color(0xFFE8F1EA)
 private val AccentOrange = Color(0xFFE87722)
-private val MutedText = Color(0xFF64716A)
 
 private enum class AppTab(val title: String, val glyph: String) {
     Home("Home", "⌂"), Transactions("Activity", "↕"), Goals("Plans", "◎"), Chat("Ask", "✦"), Review("Review", "☷")
@@ -81,14 +82,43 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val credentials = BridgeCredentials(this)
         setContent {
+            val darkMode = isSystemInDarkTheme()
+            SideEffect {
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                controller.isAppearanceLightStatusBars = !darkMode
+                controller.isAppearanceLightNavigationBars = !darkMode
+            }
             MaterialTheme(
-                colorScheme = lightColorScheme(
+                colorScheme = if (darkMode) darkColorScheme(
+                    primary = Color(0xFF85D5B0),
+                    onPrimary = Color(0xFF073B29),
+                    secondary = Color(0xFFFFB875),
+                    background = Color(0xFF101713),
+                    surface = Color(0xFF1B241F),
+                    onSurface = Color(0xFFE7F0E9),
+                    surfaceVariant = Color(0xFF28332D),
+                    onSurfaceVariant = Color(0xFFB4C1B8),
+                    primaryContainer = Color(0xFF204D39),
+                    onPrimaryContainer = Color(0xFFD4F2DF),
+                    errorContainer = Color(0xFF5B2925),
+                    onErrorContainer = Color(0xFFFFDAD4),
+                    tertiaryContainer = Color(0xFF4C3924),
+                    onTertiaryContainer = Color(0xFFFFDDB5),
+                ) else lightColorScheme(
                     primary = LedgerGreen,
                     onPrimary = Color.White,
                     secondary = AccentOrange,
-                    background = WarmCanvas,
+                    background = Color(0xFFF7F6F1),
                     surface = Color.White,
                     onSurface = Color(0xFF18231E),
+                    surfaceVariant = Color(0xFFF0EDF1),
+                    onSurfaceVariant = Color(0xFF64716A),
+                    primaryContainer = Color(0xFFE8F1EA),
+                    onPrimaryContainer = LedgerGreen,
+                    errorContainer = Color(0xFFFFE8E4),
+                    onErrorContainer = Color(0xFF8B3023),
+                    tertiaryContainer = Color(0xFFFFEAD8),
+                    onTertiaryContainer = LedgerGreenDark,
                 ),
             ) { FinanceApp(credentials) }
         }
@@ -160,9 +190,9 @@ private fun FinanceApp(credentials: BridgeCredentials) {
     }
 
     Scaffold(
-        containerColor = WarmCanvas,
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                 AppTab.entries.forEach { destination ->
                     NavigationBarItem(
                         selected = tab == destination,
@@ -180,8 +210,8 @@ private fun FinanceApp(credentials: BridgeCredentials) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("MY FINANCE", color = LedgerGreen, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                    Text(tab.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = LedgerGreenDark)
+                    Text("MY FINANCE", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    Text(tab.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 }
                 TextButton(onClick = { showSettings = !showSettings }) { Text(if (showSettings) "Close" else "⚙ Setup") }
                 TextButton(enabled = !busy && credentials.hasToken(), onClick = {
@@ -222,11 +252,11 @@ private fun FinanceApp(credentials: BridgeCredentials) {
             }
 
             if (connectionMessage.isNotBlank() && !showSettings) {
-                Text(connectionMessage, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = LedgerGreen, style = MaterialTheme.typography.bodySmall)
+                Text(connectionMessage, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
             }
             if (errorMessage.isNotBlank()) {
-                Surface(color = Color(0xFFFFE8E4), modifier = Modifier.fillMaxWidth()) {
-                    Text(errorMessage, modifier = Modifier.padding(horizontal = 20.dp, vertical = 9.dp), color = Color(0xFF8B3023), style = MaterialTheme.typography.bodySmall)
+                Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
+                    Text(errorMessage, modifier = Modifier.padding(horizontal = 20.dp, vertical = 9.dp), color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodySmall)
                 }
             }
 
@@ -291,13 +321,13 @@ private fun ConnectionCard(
     ElevatedCard(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Private server", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Surface(shape = RoundedCornerShape(40), color = SoftGreen) {
-                    Text("HTTPS", modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), color = LedgerGreen, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                Surface(shape = RoundedCornerShape(40), color = MaterialTheme.colorScheme.primaryContainer) {
+                    Text("HTTPS", modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                 }
             }
             OutlinedTextField(
@@ -335,7 +365,7 @@ private fun HomeScreen(
     ) {
         item {
             Column(Modifier.padding(top = 5.dp, bottom = 2.dp)) {
-                Text("A clear view of your money", style = MaterialTheme.typography.bodyMedium, color = MutedText)
+                Text("A clear view of your money", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (data == null) {
@@ -344,7 +374,7 @@ private fun HomeScreen(
             item {
                 ElevatedCard(
                     shape = RoundedCornerShape(26.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = LedgerGreenDark),
+                    colors = CardDefaults.elevatedCardColors(containerColor = Color(0xFF104B38)),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -364,11 +394,11 @@ private fun HomeScreen(
                 ElevatedCard(shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Spent this month", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text(formatInr(data.monthSpendPaise), style = MaterialTheme.typography.headlineSmall, color = LedgerGreenDark, fontWeight = FontWeight.Bold)
-                        Text("${data.monthStart} to ${data.monthEnd}", style = MaterialTheme.typography.labelSmall, color = MutedText)
+                        Text(formatInr(data.monthSpendPaise), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        Text("${data.monthStart} to ${data.monthEnd}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         data.topCategories.take(3).forEach { (name, amount) ->
                             Row(Modifier.fillMaxWidth().padding(top = 5.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(name, style = MaterialTheme.typography.bodySmall, color = MutedText)
+                                Text(name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(formatInr(amount), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
                             }
                         }
@@ -391,7 +421,7 @@ private fun HomeScreen(
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(account.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            Text("${account.kind.replace('_', ' ')} · ${account.status}", style = MaterialTheme.typography.labelSmall, color = MutedText)
+                            Text("${account.kind.replace('_', ' ')} · ${account.status}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Text(formatInr(account.balancePaise), fontWeight = FontWeight.SemiBold)
                     }
@@ -493,7 +523,7 @@ private fun cardBrush(name: String): Brush {
 private fun TransactionsScreen(page: TransactionsPage?, busy: Boolean, onPage: (Int) -> Unit) {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
-            Text("INR ledger activity from the last 90 days", modifier = Modifier.padding(top = 5.dp, bottom = 2.dp), style = MaterialTheme.typography.bodySmall, color = MutedText)
+            Text("INR ledger activity from the last 90 days", modifier = Modifier.padding(top = 5.dp, bottom = 2.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (page == null) {
             item { EmptyCard("Load your activity", "Transactions are read from the Firefly ledger.") }
@@ -504,7 +534,7 @@ private fun TransactionsScreen(page: TransactionsPage?, busy: Boolean, onPage: (
             items(page.items, key = { it.id }) { TransactionCard(it, expanded = true) }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("${page.totalItems} entries · page ${page.page} of ${page.totalPages}", style = MaterialTheme.typography.labelSmall, color = MutedText)
+                    Text("${page.totalItems} entries · page ${page.page} of ${page.totalPages}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         TextButton(enabled = !busy && page.page > 1, onClick = { onPage(page.page - 1) }) { Text("Previous") }
                         TextButton(enabled = !busy && page.page < page.totalPages, onClick = { onPage(page.page + 1) }) { Text("Next") }
@@ -519,7 +549,7 @@ private fun TransactionsScreen(page: TransactionsPage?, busy: Boolean, onPage: (
 @Composable
 private fun GoalsScreen(data: GoalsData?, busy: Boolean) {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
-        item { Text("Savings goals, investment values and upcoming dues", modifier = Modifier.padding(top = 5.dp), style = MaterialTheme.typography.bodySmall, color = MutedText) }
+        item { Text("Savings goals, investment values and upcoming dues", modifier = Modifier.padding(top = 5.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         if (data == null) {
             item { EmptyCard("Load your plans", "Goals and holdings are read from your finance server.") }
             if (busy) item { LoadingCard() }
@@ -531,8 +561,8 @@ private fun GoalsScreen(data: GoalsData?, busy: Boolean) {
             item {
                 ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(17.dp)) {
-                        Text(formatInr(data.holdingsTotalPaise), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = LedgerGreenDark)
-                        Text("Value from the latest statement", style = MaterialTheme.typography.bodySmall, color = MutedText)
+                        Text(formatInr(data.holdingsTotalPaise), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text("Value from the latest statement", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -553,7 +583,7 @@ private fun ChatScreen(
     onSend: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        Text("Ask about your ledger, goals or spending. Answers use the private advisor API.", modifier = Modifier.padding(top = 4.dp, bottom = 9.dp), style = MaterialTheme.typography.bodySmall, color = MutedText)
+        Text("Ask about your ledger, goals or spending. Answers use the private advisor API.", modifier = Modifier.padding(top = 4.dp, bottom = 9.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             if (messages.isEmpty()) item { EmptyCard("Your finance assistant", "Try asking: ‘How much did I spend this month?’") }
             items(messages.size) { index ->
@@ -584,7 +614,7 @@ private fun ReviewScreen(
     onCategory: (CategoryQuestion, String, Boolean) -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { Text("Categorize payments and correct unclear messages", modifier = Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodySmall, color = MutedText) }
+        item { Text("Categorize payments and correct unclear messages", modifier = Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         if (categories.isNotEmpty()) item { SectionHeading("Payment categories", "${categories.size} waiting") }
         items(categories, key = { "category-${it.id}" }) { question ->
             CategoryQuestionCard(question, busy) { name, always -> onCategory(question, name, always) }
@@ -608,9 +638,9 @@ private fun CategoryQuestionCard(question: CategoryQuestion, enabled: Boolean, o
     ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(question.payee.ifBlank { "Uncategorized payment" }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text("${formatInr(question.amountPaise)} · ${question.date} · ${question.account}", style = MaterialTheme.typography.bodySmall, color = MutedText)
+            Text("${formatInr(question.amountPaise)} · ${question.date} · ${question.account}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (question.suggested.isNotEmpty()) {
-                Text("Suggested from your past choices: ${question.suggested.joinToString()}", style = MaterialTheme.typography.bodySmall, color = LedgerGreenDark)
+                Text("Suggested from your past choices: ${question.suggested.joinToString()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
             }
             androidx.compose.foundation.layout.Box {
                 OutlinedButton(enabled = enabled && question.choices.isNotEmpty(), onClick = { menuOpen = true }) {
@@ -637,25 +667,25 @@ private fun CategoryQuestionCard(question: CategoryQuestion, enabled: Boolean, o
 private fun SummaryCard(label: String, amountPaise: Long, modifier: Modifier = Modifier) {
     ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = modifier) {
         Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MutedText)
-            Text(formatInr(amountPaise), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = LedgerGreenDark)
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(formatInr(amountPaise), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
 
 @Composable
 private fun TransactionCard(item: FinanceTransaction, expanded: Boolean = false) {
-    ElevatedCard(shape = RoundedCornerShape(19.dp), modifier = Modifier.fillMaxWidth(), colors = CardDefaults.elevatedCardColors(containerColor = Color.White)) {
+    ElevatedCard(shape = RoundedCornerShape(19.dp), modifier = Modifier.fillMaxWidth(), colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(item.payee.ifBlank { item.description.ifBlank { "Ledger transaction" } }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text("${item.date} · ${item.category.ifBlank { "Uncategorised" }}", style = MaterialTheme.typography.labelSmall, color = MutedText)
+                Text("${item.date} · ${item.category.ifBlank { "Uncategorised" }}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (expanded && item.description.isNotBlank() && item.description != item.payee) {
-                    Text(item.description, style = MaterialTheme.typography.bodySmall, color = MutedText)
-                    Text("${item.type.replace('_', ' ')} · ${item.source} → ${item.destination}", style = MaterialTheme.typography.labelSmall, color = MutedText)
+                    Text(item.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${item.type.replace('_', ' ')} · ${item.source} → ${item.destination}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Text(formatInr(item.amountPaise), color = if (item.type == "deposit") LedgerGreen else Color(0xFF263A31), fontWeight = FontWeight.Bold)
+            Text(formatInr(item.amountPaise), color = if (item.type == "deposit") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -666,11 +696,11 @@ private fun GoalCard(goal: GoalProgress) {
         Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(goal.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Text("${goal.percent}%", color = LedgerGreen, fontWeight = FontWeight.Bold)
+                Text("${goal.percent}%", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
-            LinearProgressIndicator(progress = { (goal.percent.coerceIn(0, 100)) / 100f }, modifier = Modifier.fillMaxWidth(), color = LedgerGreen)
+            LinearProgressIndicator(progress = { (goal.percent.coerceIn(0, 100)) / 100f }, modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary)
             Text("${formatInr(goal.savedPaise)} of ${formatInr(goal.targetPaise)}", style = MaterialTheme.typography.bodySmall)
-            goal.neededPerMonthPaise?.let { Text("${formatInr(it)} per month needed${goal.targetDate?.let { d -> " · by $d" }.orEmpty()}", style = MaterialTheme.typography.labelSmall, color = MutedText) }
+            goal.neededPerMonthPaise?.let { Text("${formatInr(it)} per month needed${goal.targetDate?.let { d -> " · by $d" }.orEmpty()}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }
@@ -681,7 +711,7 @@ private fun UpcomingCard(item: UpcomingItem) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(item.name.ifBlank { item.type.replace('_', ' ').replaceFirstChar { it.uppercase() } }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text(item.date, style = MaterialTheme.typography.labelSmall, color = MutedText)
+                Text(item.date, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(formatInr(item.amountPaise), fontWeight = FontWeight.Bold)
         }
@@ -690,9 +720,9 @@ private fun UpcomingCard(item: UpcomingItem) {
 
 @Composable
 private fun AlertCard(alert: FinanceAlert, onReconnect: (String) -> Unit) {
-    Surface(shape = RoundedCornerShape(16.dp), color = if (alert.severity == "high") Color(0xFFFFE9E4) else Color.White) {
+    Surface(shape = RoundedCornerShape(16.dp), color = if (alert.severity == "high") MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surface) {
         Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("•", color = if (alert.severity == "high") Color(0xFFB43E2F) else AccentOrange, style = MaterialTheme.typography.titleLarge)
+            Text("•", color = if (alert.severity == "high") MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.titleLarge)
             Column(Modifier.weight(1f)) {
                 Text(alert.message, modifier = Modifier.padding(start = 9.dp), style = MaterialTheme.typography.bodySmall)
                 if (alert.link != null) {
@@ -712,12 +742,12 @@ private fun ReviewCard(item: ReviewMessage, enabled: Boolean, onLabel: (Feedback
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(item.sender.ifBlank { "Bank message" }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Surface(shape = RoundedCornerShape(40), color = Color(0xFFFFEAD8)) {
-                    Text(item.reason.replace('_', ' '), modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = LedgerGreenDark, style = MaterialTheme.typography.labelSmall)
+                Surface(shape = RoundedCornerShape(40), color = MaterialTheme.colorScheme.tertiaryContainer) {
+                    Text(item.reason.replace('_', ' '), modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                 }
             }
-            Text(item.text.ifBlank { "Message text is unavailable" }, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF35413A))
-            Text(item.sentAt.take(16).replace('T', ' '), style = MaterialTheme.typography.labelSmall, color = MutedText)
+            Text(item.text.ifBlank { "Message text is unavailable" }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(item.sentAt.take(16).replace('T', ' '), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (item.reason == "unparsed" || item.reason == "unknown_sender") {
                 Button(enabled = enabled, onClick = { expanded = true }) { Text("Correct message type") }
                 androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -726,7 +756,7 @@ private fun ReviewCard(item: ReviewMessage, enabled: Boolean, onLabel: (Feedback
                     }
                 }
             } else {
-                Text("This item needs a different review action.", style = MaterialTheme.typography.bodySmall, color = MutedText)
+                Text("This item needs a different review action.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -737,10 +767,10 @@ private fun ChatBubble(role: String, content: String) {
     val isUser = role == "user"
     Surface(
         shape = RoundedCornerShape(19.dp),
-        color = if (isUser) LedgerGreen else Color.White,
+        color = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth(if (isUser) 0.88f else 1f).padding(start = if (isUser) 36.dp else 0.dp, end = if (isUser) 0.dp else 36.dp),
     ) {
-        Text(content, modifier = Modifier.padding(14.dp), color = if (isUser) Color.White else Color(0xFF26352D), style = MaterialTheme.typography.bodyMedium)
+        Text(content, modifier = Modifier.padding(14.dp), color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -748,7 +778,7 @@ private fun ChatBubble(role: String, content: String) {
 private fun SectionHeading(title: String, subtitle: String) {
     Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp), verticalAlignment = Alignment.Bottom) {
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MutedText)
+        Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -757,7 +787,7 @@ private fun EmptyCard(title: String, message: String) {
     ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(message, style = MaterialTheme.typography.bodySmall, color = MutedText)
+            Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -766,7 +796,7 @@ private fun EmptyCard(title: String, message: String) {
 private fun LoadingCard() {
     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-        Text("Loading from your private server…", style = MaterialTheme.typography.bodySmall, color = MutedText)
+        Text("Loading from your private server…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
