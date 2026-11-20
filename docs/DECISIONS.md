@@ -1,5 +1,6 @@
 # Decisions
 
+- 2026-11-20 · Show each card's masked last four digits and expiry on the wallet face; when expiry is unavailable, label it as not set rather than guessing · the owner wants every card face to show these familiar details, while card data remains minimal · owner
 - 2026-11-20 · P2 wallet scanner: use the Android system camera and on-device OCR only to suggest issuer, nickname/cardholder, last four, and expiry; save only those fields plus chosen color and manually entered display balance in encrypted phone-local storage · never retain/send a card image, full card number, CVV or OCR text; manual wallet balances do not alter Firefly or net worth · owner
 - 2026-11-20 · Saved card appearance may link to an existing Firefly credit-card account by account ID; linked cards display the Firefly ledger balance and latest bank-reported statement balance separately, while unlinked manual cards remain local-only. Credit limit/available limit are informational metadata and must retain issuer-wide scope when messages say they cover multiple cards; never count limits as assets or net worth · owner
 

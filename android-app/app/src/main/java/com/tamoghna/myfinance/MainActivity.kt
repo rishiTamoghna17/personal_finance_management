@@ -504,6 +504,7 @@ private fun LinkedWalletCardRow(card: WalletCard, account: AccountBalance, onEdi
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("${card.nickname} · •••• ${card.lastFour.ifBlank { account.lastFour }}", fontWeight = FontWeight.SemiBold)
+                Text(cardExpiryLabel(card.expiry), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Linked to ${account.name} · ${formatInr(account.balancePaise)} ledger", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             TextButton(onClick = onEdit) { Text("Edit") }
@@ -542,7 +543,7 @@ private fun WalletCardFace(card: WalletCard, ledgerCard: AccountBalance?, onEdit
                 }
                 Column {
                     Text(card.nickname, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("${card.expiry.takeIf { it.isNotBlank() }?.let { "EXP $it  ·  " } ?: ""}${if (card.linkedAccountId == null) "MANUAL DISPLAY BALANCE" else "LINKED TO FIREFLY${ledgerCard?.let { " · ${it.status.uppercase()}" }.orEmpty()}"}", color = Color.White.copy(alpha = .75f), style = MaterialTheme.typography.labelSmall)
+                    Text("${cardExpiryLabel(card.expiry)}  ·  ${if (card.linkedAccountId == null) "MANUAL DISPLAY BALANCE" else "LINKED TO FIREFLY${ledgerCard?.let { " · ${it.status.uppercase()}" }.orEmpty()}"}", color = Color.White.copy(alpha = .75f), style = MaterialTheme.typography.labelSmall)
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         val shownBalance = if (card.linkedAccountId != null && ledgerCard == null) "—" else formatInr(ledgerCard?.balancePaise ?: card.balancePaise)
                         Text(shownBalance, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -696,6 +697,9 @@ private fun CreditCardStack(cards: List<AccountBalance>, savedCards: List<Wallet
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(savedCard?.nickname ?: card.name, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            val lastFour = savedCard?.lastFour?.takeIf { it.isNotBlank() } ?: card.lastFour
+                            val expiry = savedCard?.expiry.orEmpty()
+                            Text("•••• ${lastFour.ifBlank { "—" }}   ·   ${cardExpiryLabel(expiry)}", color = Color.White.copy(alpha = 0.82f), style = MaterialTheme.typography.labelMedium)
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
                                 Column(Modifier.weight(1f)) {
                                     Text("FIREFLY LEDGER · ${card.status.uppercase()}", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
@@ -710,6 +714,8 @@ private fun CreditCardStack(cards: List<AccountBalance>, savedCards: List<Wallet
         }
     }
 }
+
+private fun cardExpiryLabel(expiry: String): String = expiry.takeIf { it.isNotBlank() }?.let { "EXP $it" } ?: "EXP not set"
 
 private fun cardBrush(name: String): Brush {
     val palette = when {
