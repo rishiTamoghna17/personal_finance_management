@@ -1,6 +1,7 @@
 from django.urls import path
 
 from advisor.views import AlertsView, ChatView, DigestView
+from advisor.notification_views import PushDeviceView
 from core.views import HealthView
 from mail.views import GoogleCallbackView, GoogleConnectView
 from firefly.views import AccountsView, TransactionsView
@@ -24,6 +25,7 @@ urlpatterns = [
     path("api/v1/chat", ChatView.as_view(), name="chat"),
     path("api/v1/digest", DigestView.as_view(), name="digest"),
     path("api/v1/alerts", AlertsView.as_view(), name="alerts"),
+    path("api/v1/notifications/device", PushDeviceView.as_view(), name="push-device"),
     path("api/v1/google/connect/<str:token>", GoogleConnectView.as_view(), name="google-connect"),
     path("api/v1/google/callback", GoogleCallbackView.as_view(), name="google-callback"),
 ]

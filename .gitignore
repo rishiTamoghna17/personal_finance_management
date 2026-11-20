@@ -25,6 +25,10 @@ secrets/
 
 # Google OAuth client files downloaded straight into the project
 client_secret_*.json
+android-app/google-services.json
+android-app/app/google-services.json
+secrets/firebase/*.json
+secrets/firebase/*key*
 
 # Encrypted secrets export (scripts/export-secrets.sh)
 finance-secrets-*.enc

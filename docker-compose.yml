@@ -43,6 +43,8 @@ x-bridge: &bridge
     GOOGLE_WEB_CLIENT_1_SECRET: ${GOOGLE_WEB_CLIENT_1_SECRET:-}
     GOOGLE_WEB_CLIENT_2_ID: ${GOOGLE_WEB_CLIENT_2_ID:-}
     GOOGLE_WEB_CLIENT_2_SECRET: ${GOOGLE_WEB_CLIENT_2_SECRET:-}
+    FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+    FCM_SERVICE_ACCOUNT_FILE: /run/firebase/service-account.json
     TZ: Asia/Kolkata
   networks: [internal, ai]
   logging: *logging
@@ -50,6 +52,7 @@ x-bridge: &bridge
     - bridge_data:/data
     - backup_status:/backup-status:ro  # last backup result, for the health alert (M7)
     - backup_secrets:/backup-secrets   # Drive sign-in renewed from the phone, handed to the backup job (M7)
+    - ./secrets/firebase:/run/firebase:ro
   depends_on:
     backup-secrets-init:
       condition: service_completed_successfully

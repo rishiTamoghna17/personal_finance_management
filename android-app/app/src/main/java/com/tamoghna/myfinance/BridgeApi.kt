@@ -12,6 +12,14 @@ import java.net.URL
 import java.time.LocalDate
 
 internal class BridgeApi(private val credentials: BridgeCredentials) {
+    suspend fun registerPushToken(token: String) = withContext(Dispatchers.IO) {
+        request("POST", "/api/v1/notifications/device", JSONObject().put("token", token))
+    }
+
+    suspend fun removePushToken(token: String) = withContext(Dispatchers.IO) {
+        request("DELETE", "/api/v1/notifications/device", JSONObject().put("token", token))
+    }
+
     suspend fun dashboard(): DashboardData = withContext(Dispatchers.IO) {
         val worth = request("GET", "/api/v1/networth")
         val digest = request("GET", "/api/v1/digest")

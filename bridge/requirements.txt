@@ -7,6 +7,8 @@ PyYAML>=6.0,<7
 gunicorn>=23,<24
 google-api-python-client==2.202.0
 google-auth-oauthlib==1.5.0
+google-auth>=2.40,<3
+requests>=2.32,<3
 cryptography>=46,<47
 pikepdf==10.18.1
 pdfplumber==0.11.10

@@ -6,6 +6,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
+import com.google.firebase.messaging.FirebaseMessaging
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +55,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -136,14 +142,19 @@ class MainActivity : ComponentActivity() {
             ) { FinanceApp(credentials) }
         }
     }
+
+    companion object { const val EXTRA_NOTIFICATION_ROUTE = "notification_route" }
 }
 
 @Composable
 private fun FinanceApp(credentials: BridgeCredentials) {
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
     val api = remember(credentials) { BridgeApi(credentials) }
     val scope = rememberCoroutineScope()
-    var tab by remember { mutableStateOf(AppTab.Home) }
+    var tab by remember {
+        mutableStateOf(if ((context as? ComponentActivity)?.intent?.getStringExtra(MainActivity.EXTRA_NOTIFICATION_ROUTE) == "review") AppTab.Review else AppTab.Home)
+    }
     var dashboard by remember { mutableStateOf<DashboardData?>(null) }
     var transactionPage by remember { mutableStateOf<TransactionsPage?>(null) }
     var goalsData by remember { mutableStateOf<GoalsData?>(null) }
@@ -158,6 +169,23 @@ private fun FinanceApp(credentials: BridgeCredentials) {
     var showSettings by remember { mutableStateOf(!credentials.hasToken()) }
     var errorMessage by remember { mutableStateOf("") }
     var connectionMessage by remember { mutableStateOf("") }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted || Build.VERSION.SDK_INT < 33) {
+            FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+                scope.launch { runCatching { api.registerPushToken(token) } }
+            }
+        }
+    }
+
+    fun enableNotifications() {
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+                scope.launch { runCatching { api.registerPushToken(token) } }
+            }
+        }
+    }
 
     fun runRequest(action: suspend () -> Unit) {
         if (busy) return
@@ -213,6 +241,17 @@ private fun FinanceApp(credentials: BridgeCredentials) {
         }
     }
 
+    LaunchedEffect(Unit) {
+        if (credentials.hasToken()) {
+            if (tab == AppTab.Review) loadReviews() else loadHome()
+            if (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+                    scope.launch { runCatching { api.registerPushToken(token) } }
+                }
+            }
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
@@ -263,6 +302,7 @@ private fun FinanceApp(credentials: BridgeCredentials) {
                             }
                         }
                     },
+                    onEnableNotifications = { enableNotifications() },
                 )
             }
 
@@ -365,6 +405,7 @@ private fun ConnectionCard(
     onServer: (String) -> Unit,
     onToken: (String) -> Unit,
     onSave: () -> Unit,
+    onEnableNotifications: () -> Unit,
 ) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -397,6 +438,9 @@ private fun ConnectionCard(
             )
             Button(enabled = !busy, onClick = onSave, modifier = Modifier.fillMaxWidth()) {
                 Text(if (saved) "Save connection" else "Connect securely")
+            }
+            TextButton(onClick = onEnableNotifications, modifier = Modifier.fillMaxWidth()) {
+                Text("Enable private notifications")
             }
         }
     }

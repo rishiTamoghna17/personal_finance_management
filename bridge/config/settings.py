@@ -137,6 +137,10 @@ BACKUP_STATUS_FILE = env("BACKUP_STATUS_FILE", "/backup-status/last.json")  # wr
 GOOGLE_OAUTH_TESTING = env("GOOGLE_OAUTH_TESTING", "1") == "1"
 GDRIVE_CONNECTED_AT = env("GDRIVE_CONNECTED_AT", "")  # written by scripts/gdrive-connect.sh
 
+# FCM stays disabled until a service-account key is installed as a host secret on Oracle.
+FCM_PROJECT_ID = env("FCM_PROJECT_ID", "")
+FCM_SERVICE_ACCOUNT_FILE = env("FCM_SERVICE_ACCOUNT_FILE", "/run/firebase/service-account.json")
+
 # Tap-to-reconnect from the phone (M7). Needs the private HTTPS address (Tailscale) and a "Web application" OAuth
 # client in each Google project whose redirect URI is <PUBLIC_BASE_URL>/api/v1/google/callback.
 PUBLIC_BASE_URL = env("PUBLIC_BASE_URL", "").rstrip("/")  # e.g. https://finance.tail1234.ts.net
@@ -173,6 +177,9 @@ CELERY_BEAT_SCHEDULE = {
     "card-dues": {"task": "wealth.tasks.check_dues", "schedule": crontab(minute=0, hour=9)},
     # 08:00 IST: one-time "reconnect Google" links for sign-ins that are 3+ days old (M7).
     "reconnect-links": {"task": "mail.tasks.prepare_reconnect_links", "schedule": crontab(minute=0, hour=8)},
+    # Pushes contain generic text only; the app fetches details from authenticated API routes.
+    "push-alerts": {"task": "advisor.tasks.dispatch_push_notifications", "schedule": 900.0},
+    "push-weekly-digest": {"task": "advisor.tasks.dispatch_weekly_push_digest", "schedule": crontab(minute=5, hour=8, day_of_week=1)},
 }
 
 # Log metadata only. Message bodies, account numbers and tokens are never logged.
