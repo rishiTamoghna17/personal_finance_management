@@ -223,7 +223,7 @@ private fun FinanceApp(credentials: BridgeCredentials) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("MY FINANCE", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    Text("MY FINANCE  ·  v${BuildConfig.VERSION_NAME}  ·  build ${BuildConfig.VERSION_CODE}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     Text(tab.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 }
                 TextButton(onClick = { showSettings = !showSettings }) { Text(if (showSettings) "Close" else "⚙ Setup") }
