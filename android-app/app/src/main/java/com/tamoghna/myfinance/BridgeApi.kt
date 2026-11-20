@@ -74,6 +74,7 @@ internal class BridgeApi(private val credentials: BridgeCredentials) {
             // Category questions have their own payment card backed by /alerts.
             if (item.optString("reason") == "category_needed") return@mapNotNull null
             val message = item.optJSONObject("message") ?: JSONObject()
+            val checked = item.optJSONObject("suggestion")
             ReviewMessage(
                 id = item.optInt("id"),
                 reason = item.optString("reason"),
@@ -82,6 +83,17 @@ internal class BridgeApi(private val credentials: BridgeCredentials) {
                 sentAt = message.optString("sent_at"),
                 status = item.optString("status"),
                 feedback = item.optString("feedback").takeUnless { it == "null" || it.isBlank() },
+                suggestion = checked?.let { value ->
+                    TransactionSuggestion(
+                        status = value.optString("status"), reason = value.optString("reason"),
+                        amountPaise = if (value.has("amount_paise")) value.optLong("amount_paise") else null,
+                        direction = value.optString("direction", "debit"),
+                        accountLast4 = value.optString("account_last4"),
+                        occurredAt = value.optString("occurred_at"),
+                        counterparty = value.optString("counterparty"),
+                        reference = value.optString("reference"),
+                    )
+                },
             )
         }
     }
@@ -112,6 +124,20 @@ internal class BridgeApi(private val credentials: BridgeCredentials) {
 
     suspend fun label(id: Int, label: String) = withContext(Dispatchers.IO) {
         request("POST", "/api/v1/review/$id/feedback", JSONObject().put("label", label))
+    }
+
+    suspend fun acceptCorrection(
+        id: Int, amount: String, direction: String, accountLast4: String,
+        date: String, counterparty: String, reference: String,
+    ) = withContext(Dispatchers.IO) {
+        val correction = JSONObject()
+            .put("amount", amount.trim())
+            .put("direction", direction)
+            .put("account_last4", accountLast4.trim())
+            .put("date", date.trim())
+            .put("counterparty", counterparty.trim())
+            .put("reference", reference.trim())
+        request("POST", "/api/v1/review/$id/accept", JSONObject().put("correction", correction))
     }
 
     suspend fun chat(message: String, history: List<Pair<String, String>>): String = withContext(Dispatchers.IO) {

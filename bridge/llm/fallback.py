@@ -69,10 +69,12 @@ def check(answer, original, sent_at):
         if day != sent_at.astimezone(IST).date():
             occurred = dt.datetime.combine(day, dt.time(12, 0), tzinfo=IST)
     reference = str(answer.get("reference") or "")
+    reference_key = re.sub(r"[^A-Za-z0-9]", "", reference).lower()
+    original_key = re.sub(r"[^A-Za-z0-9]", "", original).lower()
     return {
         "amount_paise": amount, "direction": answer["direction"], "account_last4": digits,
         "occurred_at": occurred.isoformat(), "counterparty": str(answer.get("counterparty") or "")[:200],
-        "reference": reference[:64] if reference and _digits(reference) in _digits(original) else "",
+        "reference": reference[:64] if reference_key and reference_key in original_key else "",
     }
 
 

@@ -311,7 +311,18 @@ private fun FinanceApp(credentials: BridgeCredentials) {
                         reviews.addAll(fresh)
                         feedbackHistory.clear()
                         feedbackHistory.addAll(labeled)
-                        connectionMessage = "Saved your correction: ${label.title}."
+                        connectionMessage = "Saved ${label.title}. If local message fallback is used, a masked example may help with future messages from this sender; transaction details are not reused."
+                    } },
+                    onAccept = { item, correction -> runRequest {
+                        api.acceptCorrection(item.id, correction.amount, correction.direction, correction.accountLast4,
+                            correction.date, correction.counterparty, correction.reference)
+                        val fresh = api.reviews()
+                        val labeled = api.reviews("all").filter { it.feedback != null }
+                        reviews.clear()
+                        reviews.addAll(fresh)
+                        feedbackHistory.clear()
+                        feedbackHistory.addAll(labeled)
+                        connectionMessage = "Accepted your corrected details. The message is going through normal duplicate and transfer checks."
                     } },
                     onCategory = { question, category, always -> runRequest {
                         api.chooseCategory(question.id, category, always)
@@ -822,6 +833,7 @@ private fun ReviewScreen(
     busy: Boolean,
     onLoadHistory: () -> Unit,
     onLabel: (ReviewMessage, FeedbackType) -> Unit,
+    onAccept: (ReviewMessage, StructuredCorrection) -> Unit,
     onCategory: (CategoryQuestion, String, Boolean) -> Unit,
 ) {
     var showHistory by remember { mutableStateOf(false) }
@@ -838,7 +850,10 @@ private fun ReviewScreen(
             item { EmptyCard(if (showHistory) "No saved message labels" else "Nothing needs review", if (showHistory) "Owner corrections will appear here so they can be changed later." else "Unparsed messages and uncategorized payments will appear here.") }
             if (busy) item { LoadingCard() }
         } else {
-            items(visibleReviews, key = { "message-${it.id}" }) { item -> ReviewCard(item, busy) { label -> onLabel(item, label) } }
+            items(visibleReviews, key = { "message-${it.id}" }) { item ->
+                ReviewCard(item, busy, onLabel = { label -> onLabel(item, label) },
+                    onAccept = { correction -> onAccept(item, correction) })
+            }
         }
         item { Spacer(Modifier.height(8.dp)) }
     }
@@ -954,8 +969,33 @@ private fun AlertCard(alert: FinanceAlert, onReconnect: (String) -> Unit) {
 }
 
 @Composable
-private fun ReviewCard(item: ReviewMessage, busy: Boolean, onLabel: (FeedbackType) -> Unit) {
+private fun ReviewCard(
+    item: ReviewMessage,
+    busy: Boolean,
+    onLabel: (FeedbackType) -> Unit,
+    onAccept: (StructuredCorrection) -> Unit,
+) {
     var expanded by remember { mutableStateOf(false) }
+    val suggestion = item.suggestion
+    var amount by remember(item.id, suggestion?.status, suggestion?.amountPaise) {
+        mutableStateOf(suggestion?.amountPaise?.let(::paiseInput).orEmpty())
+    }
+    var direction by remember(item.id, suggestion?.status, suggestion?.direction) {
+        mutableStateOf(suggestion?.direction ?: "debit")
+    }
+    var accountLast4 by remember(item.id, suggestion?.status, suggestion?.accountLast4) {
+        mutableStateOf(suggestion?.accountLast4.orEmpty())
+    }
+    var date by remember(item.id, suggestion?.status, suggestion?.occurredAt) {
+        mutableStateOf(suggestion?.occurredAt?.take(10).orEmpty())
+    }
+    var counterparty by remember(item.id, suggestion?.status, suggestion?.counterparty) {
+        mutableStateOf(suggestion?.counterparty.orEmpty())
+    }
+    var reference by remember(item.id, suggestion?.status, suggestion?.reference) {
+        mutableStateOf(suggestion?.reference.orEmpty())
+    }
+    var directionMenuOpen by remember { mutableStateOf(false) }
     ElevatedCard(shape = RoundedCornerShape(21.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -968,17 +1008,66 @@ private fun ReviewCard(item: ReviewMessage, busy: Boolean, onLabel: (FeedbackTyp
             Text(item.sentAt.take(16).replace('T', ' '), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (item.reason == "unparsed" || item.reason == "unknown_sender") {
                 if (item.feedback != null) Text("Saved label: ${feedbackTypes.firstOrNull { it.code == item.feedback }?.title ?: item.feedback} · ${item.status}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                Button(enabled = !busy, onClick = { expanded = true }) { Text("Correct message type") }
+                Button(enabled = !busy && (item.status == "open" || item.feedback != null), onClick = { expanded = true }) { Text("Correct message type") }
                 androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     feedbackTypes.forEach { choice ->
                         androidx.compose.material3.DropdownMenuItem(text = { Text(choice.title) }, onClick = { expanded = false; onLabel(choice) })
                     }
+                }
+                if (item.status == "open") {
+                    Text(
+                        if (suggestion?.status == "ok" && suggestion.amountPaise != null)
+                            "Check or correct the suggested details. If any are missing, enter them from the message. Amount and account digits are checked against the original; nothing is accepted until you tap below."
+                        else
+                            "Enter the transaction details from the message. Amount and account digits are checked against the original; nothing is accepted until you tap below.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(
+                        value = amount, onValueChange = { amount = it }, label = { Text("Amount (₹)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), maxLines = 1,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    androidx.compose.foundation.layout.Box {
+                        OutlinedButton(enabled = !busy, onClick = { directionMenuOpen = true }) {
+                            Text(if (direction == "credit") "Money received · Credit" else "Money spent · Debit")
+                        }
+                        DropdownMenu(expanded = directionMenuOpen, onDismissRequest = { directionMenuOpen = false }) {
+                            DropdownMenuItem(text = { Text("Money spent · Debit") }, onClick = { direction = "debit"; directionMenuOpen = false })
+                            DropdownMenuItem(text = { Text("Money received · Credit") }, onClick = { direction = "credit"; directionMenuOpen = false })
+                        }
+                    }
+                    OutlinedTextField(
+                        value = accountLast4, onValueChange = { accountLast4 = it.filter(Char::isDigit).take(4) },
+                        label = { Text("Bank/card last digits") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        maxLines = 1, modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = date, onValueChange = { date = it }, label = { Text("Transaction date (YYYY-MM-DD)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii), maxLines = 1,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(value = counterparty, onValueChange = { counterparty = it }, label = { Text("Payee or sender") }, maxLines = 1, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = reference, onValueChange = { reference = it }, label = { Text("Reference (optional)") }, maxLines = 1, modifier = Modifier.fillMaxWidth())
+                    Button(
+                        enabled = !busy && amount.isNotBlank() && accountLast4.isNotBlank() && date.isNotBlank(),
+                        onClick = { onAccept(StructuredCorrection(amount, direction, accountLast4, date, counterparty, reference)) },
+                    ) { Text("Accept corrected transaction") }
+                } else if (suggestion?.status == "ok" && item.status != "open") {
+                    Text("This review is closed. Correct the saved message type above to reopen it before changing transaction details.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else if (suggestion != null && suggestion.status != "ok") {
+                    Text("No checked transaction details to accept: ${suggestion.reason.ifBlank { suggestion.status }}",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 Text("This item needs a different review action.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
+}
+
+private fun paiseInput(paise: Long): String {
+    val amount = kotlin.math.abs(paise)
+    return "${amount / 100}.${(amount % 100).toString().padStart(2, '0')}"
 }
 
 @Composable

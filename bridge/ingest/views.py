@@ -198,14 +198,41 @@ class ReviewActionView(APIView):
         return Response({"item": _review_json(item), "message_status": status})
 
     def _accept(self, request, item):
-        """Accept the checked AI reading of an unparsed message: it then goes through normal reconciliation."""
+        """Accept a checked AI reading, optionally with owner corrections, through normal reconciliation."""
         import datetime as dt
 
         from . import accounts
+        from llm import fallback
 
+        if item.reason != ReviewItem.Reason.UNPARSED or item.raw is None:
+            return Response({"detail": "only an open unparsed message can accept corrected transaction details"}, status=400)
         s = item.suggestion or {}
-        if s.get("status") != "ok":
-            return Response({"detail": "no accepted-able AI suggestion on this item"}, status=400)
+        correction = request.data.get("correction")
+        if correction is not None:
+            fields = {"amount", "direction", "account_last4", "date", "counterparty", "reference"}
+            if not isinstance(correction, dict) or set(correction) != fields:
+                return Response({"detail": "correction must include amount, direction, account_last4, date, counterparty and reference"}, status=400)
+            if any(not isinstance(correction[key], str) for key in fields):
+                return Response({"detail": "all corrected fields must be text"}, status=400)
+            if len(correction["counterparty"]) > 200 or len(correction["reference"]) > 64:
+                return Response({"detail": "counterparty or reference is too long"}, status=400)
+            answer = {
+                "is_transaction": True,
+                "amount": correction["amount"],
+                "direction": correction["direction"],
+                "account_digits": correction["account_last4"],
+                "date": correction["date"] or None,
+                "counterparty": correction["counterparty"],
+                "reference": correction["reference"],
+            }
+            try:
+                s = fallback.check(answer, item.raw.body, item.raw.sent_at)
+            except fallback.Rejected as exc:
+                return Response({"detail": f"Correction rejected: {exc}"}, status=400)
+            if correction["reference"] and not s["reference"]:
+                return Response({"detail": "reference was not found in the original message"}, status=400)
+        elif s.get("status") != "ok":
+            return Response({"detail": "no checked AI suggestion; enter corrected transaction details"}, status=400)
         account, why = accounts.resolve(s["account_last4"])
         if account is None:
             return Response({"detail": why}, status=409)
@@ -220,6 +247,8 @@ class ReviewActionView(APIView):
                 occurred_at=dt.datetime.fromisoformat(s["occurred_at"]),
             )
             reconcile._reconcile(pt)
+            if not MessageFeedback.objects.filter(raw=raw).exists():
+                MessageFeedback.objects.create(raw=raw, label=MessageFeedback.Label.TRANSACTION)
             self._close(item, ReviewItem.Status.RESOLVED, "accepted AI suggestion")
         return Response(_review_json(item))
 

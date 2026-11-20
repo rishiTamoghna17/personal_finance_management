@@ -66,6 +66,7 @@ def test_ollama_request_carries_no_upi_id_or_reference(monkeypatch):
 
     class Raw:
         body, sent_at = SMS, BASE
+        header, source, pk = "TEST-SENDER", "sms", 0
     s = fallback.suggest(Raw())
     sent = json.dumps(seen[0])
     assert "rahul.k@okaxis" not in sent and "123456789012" not in sent and "18001234567" not in sent
@@ -98,6 +99,29 @@ def test_unparsed_bank_sms_gets_a_suggestion_that_can_be_accepted(firefly, setti
     assert response.status_code == 200
     entry = LedgerEntry.objects.get()
     assert (entry.type, entry.amount_paise, entry.source_account_id) == ("withdrawal", 7500, "1")
+
+
+def test_owner_correction_can_accept_a_rejected_suggestion(firefly, settings, monkeypatch, auth, django_capture_on_commit_callbacks):
+    settings.LLM_FALLBACK_ENABLED = True
+    monkeypatch.setattr(providers, "ask", lambda system, user, transport=None: {
+        "is_transaction": True, "amount": "999.00", "direction": "debit", "account_digits": "XX1111",
+        "date": None, "counterparty": "Wrong payee", "reference": None})
+    text = "TESTBANK: INR 75.00 debited from XX1111 to TEA STALL on 12-11-26 UPI Ref 123456"
+    ingest(django_capture_on_commit_callbacks, "VM-TESTBK", text)
+    item = ReviewItem.objects.get()
+    assert item.suggestion["status"] == "rejected"
+
+    correction = {
+        "amount": "75.00", "direction": "debit", "account_last4": "1111",
+        "date": "2026-11-12", "counterparty": "TEA STALL", "reference": "123456",
+    }
+    response = Client().post(
+        f"/api/v1/review/{item.pk}/accept", data=json.dumps({"correction": correction}),
+        content_type="application/json", **auth,
+    )
+    assert response.status_code == 200, response.content
+    entry = LedgerEntry.objects.get()
+    assert (entry.amount_paise, entry.counterparty, entry.source_account_id) == (7500, "TEA STALL", "1")
 
 
 def test_unknown_sender_is_never_sent_to_the_model(firefly, settings, monkeypatch, django_capture_on_commit_callbacks):

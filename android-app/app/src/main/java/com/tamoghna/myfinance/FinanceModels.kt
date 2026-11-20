@@ -50,6 +50,27 @@ internal data class ReviewMessage(
     val sentAt: String,
     val status: String = "open",
     val feedback: String? = null,
+    val suggestion: TransactionSuggestion? = null,
+)
+
+internal data class TransactionSuggestion(
+    val status: String,
+    val reason: String = "",
+    val amountPaise: Long? = null,
+    val direction: String = "debit",
+    val accountLast4: String = "",
+    val occurredAt: String = "",
+    val counterparty: String = "",
+    val reference: String = "",
+)
+
+internal data class StructuredCorrection(
+    val amount: String,
+    val direction: String,
+    val accountLast4: String,
+    val date: String,
+    val counterparty: String,
+    val reference: String,
 )
 
 internal data class CategoryQuestion(
