@@ -1,6 +1,6 @@
 """Per-bank SMS profiles (YAML) and the parser that applies them.
 
-A profile is written only from the owner's real, masked samples (CLAUDE.md rule 9).
+A profile is written only from the owner's real, masked samples (AGENTS.md rule 9).
 See ingest/profiles/README.md for the format.
 """
 import datetime as dt

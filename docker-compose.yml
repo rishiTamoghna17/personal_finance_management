@@ -96,6 +96,7 @@ services:
     restart: unless-stopped
     stop_signal: SIGINT
     environment:
+      APP_NAME: ${FIREFLY_APP_NAME:-Firefly III}
       APP_KEY: ${FIREFLY_APP_KEY:?set in .env}
       APP_URL: ${FIREFLY_APP_URL:-http://localhost:8080}
       SITE_OWNER: ${FIREFLY_SITE_OWNER:-owner@localhost}
@@ -109,9 +110,10 @@ services:
       DB_USERNAME: ${FIREFLY_DB_USER:-firefly}
       DB_PASSWORD: ${FIREFLY_DB_PASSWORD:?set in .env}
       STATIC_CRON_TOKEN: ${FIREFLY_STATIC_CRON_TOKEN:?set in .env}
-      TRUSTED_PROXIES: ""
+      TRUSTED_PROXIES: "**"
       ALLOW_WEBHOOKS: "true"  # used only by the internal AI categoriser webhook (M4)
     volumes:
+      - firefly_storage:/var/www/html/storage
       - firefly_upload:/var/www/html/storage/upload
     ports:
       - "127.0.0.1:8080:8080"
@@ -259,6 +261,7 @@ services:
       RCLONE_CONFIG_GDRIVE_CLIENT_SECRET: ${GDRIVE_CLIENT_SECRET:-}
       RCLONE_CONFIG_GDRIVE_TOKEN: ${GDRIVE_TOKEN:-}
     volumes:
+      - firefly_storage:/backup/firefly_storage:ro
       - bridge_data:/backup/bridge_data:ro
       - categorizer_data:/backup/categorizer_data:ro
       - backup_status:/status
@@ -270,6 +273,7 @@ services:
 
 volumes:
   postgres_data:
+  firefly_storage:
   firefly_upload:
   bridge_data:
   categorizer_data:

@@ -38,3 +38,11 @@ def unmask(value, mapping):
     for key, original in mapping.items():
         value = value.replace(key, original)
     return value
+
+
+def mask_learning_example(text):
+    """Mask identity, names, references, dates and amounts before a message is reused as a prompt example."""
+    out, _ = mask(text, names=True)
+    # Learning examples need message shape, not transaction values. Replace every numeric run,
+    # including short account suffixes and amounts that the general fallback preserves.
+    return re.sub(r"\d[\d,]*(?:\.\d+)?", "<NUMBER>", out)

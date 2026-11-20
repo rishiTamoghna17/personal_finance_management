@@ -1,7 +1,7 @@
 # Bank and card SMS profiles
 
 One YAML file per bank or card issuer. **Write a pattern only from a real, masked
-SMS the owner has sent** (CLAUDE.md rule 9), and add that SMS as a test fixture
+SMS the owner has sent** (AGENTS.md rule 9), and add that SMS as a test fixture
 in `bridge/tests/ingest/fixtures/<profile id>/`.
 
 ```yaml

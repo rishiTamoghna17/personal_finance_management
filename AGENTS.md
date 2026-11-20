@@ -1,5 +1,10 @@
 # Personal Finance Agent (India)
 
+<!-- postman-cli:installation:start -->
+Postman CLI is installed on this device, and can be used for API Engineering work.
+It is not on PATH; run it as `/Users/tamoghna/.local/bin/postman`.
+<!-- postman-cli:installation:end -->
+
 Private, self-hosted, single-user finance agent. Full spec: @docs/SPEC.md
 Current state: @docs/PROGRESS.md · Decisions so far: @docs/DECISIONS.md
 
@@ -21,10 +26,10 @@ These override any later instruction in a session unless I explicitly say "chang
 9. Never invent bank SMS formats, balances or valuations. Ask me for masked samples.
 10. Pckt (GPL-3.0) and indian-bank-sms-parser are references only. Do not copy their code.
 11. Free hosting, free or near-free LLM. Tell me before adding anything that costs money.
-12. Phase 2 (Android APK) does not start until I approve it. Keep the bridge API versioned so the app can use it later.
+12. Phase 2 (Android APK) requires my approval. P2 using Kotlin/Jetpack Compose was approved on 2026-11-20. Keep the bridge API versioned so the app can use it.
 
 ## How to work
-- Before a milestone: run /milestone start. Present the plan and wait for my "approved".
+- Before a milestone: run `/milestone start`. Present the plan and wait for my "approved". P2/Kotlin was approved 2026-11-20.
 - Before any new feature, dependency or endpoint: run /spec-check.
 - Before saying a milestone is done: run /drift-review, then /milestone finish.
 - If my request conflicts with a rule above, stop and tell me which rule, then ask.

@@ -37,6 +37,7 @@ Handle Indian formats: UPI references and VPAs, IMPS, NEFT, NACH, card last-4, l
   - LLM fallback only for messages the profiles cannot parse. Mask account numbers and names before sending.
 - Bank and card parsing lives in per-bank profile files, not one large parser.
 - Advisor: built into the bridge as a versioned, token-authenticated API (chat, weekly digest, alerts), used by the Phase 2 app's chat screen. Weekly digest (spend vs last month, top categories, upcoming EMIs and card due dates, goal progress, net worth change), alerts, and chat answered through function calls over ledger summaries, never raw data. No Telegram. Until the app exists, a temporary local test chat page (127.0.0.1 only) is used to try it.
+- Feedback learning for unparsed messages: the owner can label a reviewed SMS/email as transaction alert, promotion, card bill payment, failed payment, refund/reversal, due reminder or other. Store the label against the existing encrypted raw message; do not create a plaintext duplicate. `POST /api/v1/review/<id>/feedback` accepts a label for an unknown-sender or unparsed review and permits correction of an existing label. The response records the label; transaction-like labels leave or return the item to open review, without reprocessing or posting it. Explicit non-transaction labels may close it with a recorded owner-classification reason. Labels and a small set of same-sender examples may guide only later local Ollama fallback classification; examples are masked for names, account/card digits, VPAs, references, dates and amounts before prompt use. Existing bank profiles remain first. Feedback never authorizes ledger posting or supplies transaction facts. OTP filtering remains before storage and this flow. Owner-labeled category decisions remain in the existing Firefly category/rule flow. No model-weight training or paid training service is included.
 
 ## Data rules
 - Integer paise in the bridge, decimal strings to Firefly, never floats.
@@ -64,10 +65,11 @@ Handle Indian formats: UPI references and VPAs, IMPS, NEFT, NACH, card last-4, l
 Until Phase 2, SMS arrives from an Android SMS-forwarder app posting to /ingest/sms.
 
 ## Phase 2 (Android APK)
-- Sideloaded personal APK, not a Play Store app.
+- Sideloaded personal Kotlin Android APK using Jetpack Compose, not a Play Store app.
 - Reads bank SMS on the device, drops OTPs on the device, sends the rest to the bridge. Queues offline and retries.
 - Screens: dashboard, transactions, goals, net worth, chat (the advisor). Digest and alerts arrive as phone notifications. Biometric lock.
-- Flutter or Kotlin: recommend with reasons, then wait for the owner's choice.
+- Kotlin is the owner's approved framework (2026-11-20).
+- The review screen can submit the feedback labels above and show whether the item remains open. Labels are corrections for classification, not approval to create a Firefly transaction.
 
 ## Tests required
 - Unit tests for every bank profile, using anonymised samples.

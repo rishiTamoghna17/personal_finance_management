@@ -1,6 +1,6 @@
 """Drop messages that carry a secret: OTP, PIN, CVV, password or a verification code.
 
-Runs in memory before anything is stored, logged or queued (CLAUDE.md rule 3).
+Runs in memory before anything is stored, logged or queued (AGENTS.md rule 3).
 When in doubt it drops: storing a secret is worse than losing a message, and
 every drop is counted per sender per day so it is never silent.
 

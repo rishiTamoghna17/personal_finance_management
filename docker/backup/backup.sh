@@ -27,7 +27,7 @@ pg_dump -h postgres -U postgres -Fc -f "$WORK/bridge.dump" "${BRIDGE_DB_NAME:-br
 unset PGPASSWORD
 
 restic cat config >/dev/null 2>&1 || restic init
-restic backup --quiet --tag "$MODE" --host finance-server "$WORK" /backup
+restic backup --quiet --tag "$MODE" --host finance-server "$WORK" /backup/firefly_storage /backup/bridge_data /backup/categorizer_data
 if [ "$(date +%u)" = "7" ] || [ "$MODE" = "maintain" ]; then
   restic forget --quiet --host finance-server --keep-daily 14 --keep-weekly 8 --keep-monthly 12 --prune
   restic check --quiet

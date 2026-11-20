@@ -1,7 +1,7 @@
 # Personal finance agent (India)
 
 Private, self-hosted, single-user. Firefly III is the ledger; a small Django
-service ("bridge") will ingest bank messages and feed it. Rules: [CLAUDE.md](CLAUDE.md).
+service ("bridge") will ingest bank messages and feed it. Project rules: [AGENTS.md](AGENTS.md).
 Spec: [docs/SPEC.md](docs/SPEC.md). Status: [docs/PROGRESS.md](docs/PROGRESS.md).
 
 ## What runs (M1 + M2)
@@ -70,6 +70,7 @@ Every request needs `Authorization: Bearer <BRIDGE_API_TOKEN>`. Nothing in the A
 | `GET /api/v1/review` | Messages and payments that need you: unknown sender, unparsed, unknown account, ambiguous match, unpaired transfer, failed post, payment without a category. `?status=all` shows closed items too. |
 | `POST /api/v1/review/<id>/ignore` | Close an item; its message is kept, marked ignored. |
 | `POST /api/v1/review/<id>/reparse` | Parse the message again, e.g. after a bank profile was added. |
+| `POST /api/v1/review/<id>/feedback` | Save or correct an owner label for an unparsed SMS/email: `{"label":"promotion"}` (labels: `transaction_alert`, `promotion`, `card_bill_payment`, `failed_payment`, `refund_reversal`, `due_reminder`, `other`). Labels never post transactions; non-transaction labels close the item with an audit reason. |
 | `POST /api/v1/review/<id>/resolve` | Ambiguous match: `{"entry_id": <candidate>}` to merge or `{"entry_id": null}` for a new payment. Unpaired transfer or failed post: `{"post": true}` to post as it is. |
 | `POST /api/v1/review/<id>/category` | Payment without a category: `{"category": "<Firefly category>", "always": true}` sets it in Firefly; `always` also adds a Firefly rule for that payee. |
 

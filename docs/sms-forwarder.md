@@ -11,22 +11,17 @@ Play Protect may warn when you install it; that is expected for this kind of app
 
 ## 1. Let the phone reach the bridge
 
-Chosen for now (2026-11-13): **home Wi-Fi**. The bridge also listens on the Mac's
-Wi-Fi address, set by `BRIDGE_LAN_IP` in `.env` (currently `192.168.0.106`), through
-`docker-compose.lan.yml`. Firefly stays on `127.0.0.1`.
+The bridge runs on the Oracle server. Tailscale Serve provides private HTTPS at
+`https://finance.tail1cee0a.ts.net`; the phone and server must be connected to the
+same Tailscale network. The Mac does not need to stay on, and no app port is exposed
+to the public internet.
 
-- The phone must be on the same Wi-Fi as the Mac. On mobile data, messages wait on
-  the phone ("Store failed messages for retry") and go through once it is back home.
-- In the forwarder rule, turn on **Local network mode** (advanced parameters), so it
-  does not wait for a validated internet connection.
-- Reserve the Mac's address in your router (DHCP reservation). If the address changes,
-  update `BRIDGE_LAN_IP` and run `docker compose up -d bridge`; until then the bridge
-  will not start on the new address.
-- Traffic is plain HTTP on your Wi-Fi. The token and HMAC signature stop others from
-  sending fake messages, but anyone on the same Wi-Fi who captures traffic can read
-  the bank SMS. Tailscale (encrypted, free) removes this; M7 adds HTTPS.
-- To go back to local-only, delete the `COMPOSE_FILE` and `BRIDGE_LAN_IP` lines from
-  `.env` and run `docker compose up -d bridge`.
+- Keep Tailscale connected on the phone. The forwarder can retry messages when the
+  phone is offline; they should send once it reconnects.
+- Use the HTTPS bridge URL below. Do not enable **Local network mode** for this
+  Tailscale route.
+- Traffic is encrypted by HTTPS inside the private tailnet. Keep the bearer token and
+  HMAC secret private.
 
 ## 2. Turn off RCS
 
@@ -39,7 +34,7 @@ Google Messages → Settings → RCS chats → turn off.
 | --- | --- |
 | Sender | `(?i)-(HDFCBK\|HDFCBN\|HSBCIN\|AXISBK\|SBIUPI\|SBIPSG\|ATMSBI\|CBSSBI\|SBIINB\|ICICIT\|SBICRD\|MYSBIC)(-[A-Z])?$` with **Sender is a regular expression** ticked. It matches every bank sender found in your SMS backup, whatever the operator prefix (`JM-`, `AX-`, …). Add a new bank's 6-letter ID inside the brackets. Left out on purpose: `FEDBNK`/`FEDFIB` (Federal Bank / Fi, no longer used), `TNBPAY` (Tata Neu reminders), `SBIBNK` and `SBYONO` (SBI promotions), `FIMONY` (Fi app offers). Do not use `*`: it would send personal SMS to the bridge. |
 | Text filter | `(?si)^(?!.*(is your otp\|otp is\|otp for\|one.?time.?pass\|verification code))` drops obvious OTPs on the phone. The bridge filters again, more strictly. |
-| URL | `http://192.168.0.106:8000/api/v1/ingest/sms` (your `BRIDGE_LAN_IP`) |
+| URL | `https://finance.tail1cee0a.ts.net/api/v1/ingest/sms` |
 | Headers | `{"Authorization": "Bearer <BRIDGE_API_TOKEN from .env>"}` |
 | Sign with HMAC-SHA-256 | On. Secret: `BRIDGE_SMS_HMAC_SECRET` from `.env`. |
 | Store failed messages for retry | On |

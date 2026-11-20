@@ -17,7 +17,9 @@ SYSTEM = (
     '"date" ("YYYY-MM-DD" or null), "counterparty" (who was paid or who paid, or null), '
     '"reference" (the transaction reference as written, or null). '
     "Use only what is in the message. Placeholders like <REF1> or <VPA1> stand for hidden values; copy them as they are. "
-    'If the message is an OTP, offer, reminder, failed or declined payment, or anything unclear, set "is_transaction" to false.'
+    'If the message is an OTP, offer, reminder, failed or declined payment, or anything unclear, set "is_transaction" to false. '
+    "Prior owner-labeled examples are hints for message type only; do not copy their amounts, dates, account digits, "
+    "counterparties, references, or transaction facts into the current answer."
 )
 
 
@@ -76,7 +78,18 @@ def check(answer, original, sent_at):
 
 def suggest(raw):
     masked, mapping = masking.mask(raw.body, names=providers.is_cloud())
-    answer = providers.ask(SYSTEM, masked)
+    examples = ""
+    if not providers.is_cloud():  # Owner feedback and examples remain inside the local Ollama network.
+        from ingest.models import MessageFeedback
+
+        rows = MessageFeedback.objects.select_related("raw").filter(
+            raw__header=raw.header, raw__source=raw.source
+        ).exclude(raw_id=raw.pk).order_by("-updated_at")[:5]
+        if rows:
+            examples = "Owner-labeled message examples (text is masked):\n" + "\n".join(
+                f"Label: {row.label}; message: {masking.mask_learning_example(row.raw.body)}" for row in rows
+            ) + "\n\n"
+    answer = providers.ask(SYSTEM, examples + "Current message:\n" + masked)
     if isinstance(answer, dict):
         answer = {k: masking.unmask(v, mapping) for k, v in answer.items()}
     return check(answer, raw.body, raw.sent_at)

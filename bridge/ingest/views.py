@@ -13,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import otp, reconcile, services
-from .models import DropTally, LedgerEntry, ParsedTransaction, RawMessage, ReviewItem
+from .models import DropTally, LedgerEntry, MessageFeedback, ParsedTransaction, RawMessage, ReviewItem
 from .parser import IST, header_of, header_of_email
 from .tasks import post_entry, process_raw
 
@@ -138,6 +138,7 @@ def _review_json(item):
         "candidates": item.candidates,
         "candidate_details": _candidate_details(item.candidates),
         "suggestion": item.suggestion,
+        "feedback": getattr(getattr(raw, "feedback", None), "label", None) if raw else None,
         "entry_id": item.entry_id,
         "message": None if raw is None else {
             "id": raw.pk, "source": raw.source, "sender": raw.sender, "text": raw.body,
@@ -248,6 +249,50 @@ class ReviewActionView(APIView):
             transaction.on_commit(lambda: post_entry.delay(entry.pk))
             return Response(_review_json(item))
         return Response({"detail": "nothing to resolve this way; use ignore or reparse"}, status=400)
+
+
+class ReviewFeedbackView(APIView):
+    """POST /api/v1/review/<id>/feedback with {"label": <MessageFeedback.Label>}.
+
+    Feedback labels never parse a transaction or authorize posting to Firefly.
+    """
+
+    def post(self, request, pk):
+        item = get_object_or_404(ReviewItem.objects.select_related("raw"), pk=pk)
+        raw = item.raw
+        if raw is None or item.reason not in (ReviewItem.Reason.UNKNOWN_SENDER, ReviewItem.Reason.UNPARSED):
+            return Response({"detail": "feedback is only available for unclassified messages"}, status=400)
+        prior = MessageFeedback.objects.filter(raw=raw).first()
+        if item.status != ReviewItem.Status.OPEN and prior is None:
+            return Response({"detail": "review item is already closed"}, status=409)
+        label = request.data.get("label")
+        allowed = {value for value, _ in MessageFeedback.Label.choices}
+        if not isinstance(label, str) or label not in allowed:
+            return Response({"detail": "label must be one of the documented message types"}, status=400)
+
+        with transaction.atomic():
+            MessageFeedback.objects.update_or_create(raw=raw, defaults={"label": label})
+            # A correction to a prior owner label can reopen review, but never reprocesses
+            # or posts the message automatically.
+            if label in (MessageFeedback.Label.TRANSACTION, MessageFeedback.Label.CARD_PAYMENT,
+                         MessageFeedback.Label.REFUND) and item.status != ReviewItem.Status.OPEN:
+                raw.status, raw.status_reason = RawMessage.Status.REVIEW, "owner corrected message classification"
+                raw.save(update_fields=["status", "status_reason"])
+                item.status, item.resolution, item.resolved_at = ReviewItem.Status.OPEN, "", None
+                item.save(update_fields=["status", "resolution", "resolved_at"])
+            if label == MessageFeedback.Label.PROMOTION:
+                raw.status, raw.status_reason = RawMessage.Status.IGNORED, "classified as promotion by owner"
+                raw.save(update_fields=["status", "status_reason"])
+                item.status, item.resolution, item.resolved_at = ReviewItem.Status.IGNORED, "classified as promotion by owner", timezone.now()
+                item.save(update_fields=["status", "resolution", "resolved_at"])
+            elif label in (MessageFeedback.Label.FAILED, MessageFeedback.Label.REMINDER,
+                           MessageFeedback.Label.OTHER):
+                raw.status, raw.status_reason = RawMessage.Status.IGNORED, f"classified as {label} by owner"
+                raw.save(update_fields=["status", "status_reason"])
+                item.status, item.resolution, item.resolved_at = ReviewItem.Status.IGNORED, f"classified as {label} by owner", timezone.now()
+                item.save(update_fields=["status", "resolution", "resolved_at"])
+        item.refresh_from_db()
+        return Response(_review_json(item))
 
     def _resolve_ambiguous(self, request, item):
         if "entry_id" not in request.data:

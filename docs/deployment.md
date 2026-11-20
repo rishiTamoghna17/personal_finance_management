@@ -1,128 +1,71 @@
 # Deployment guide (M7)
 
-How to run the finance agent on an always-on server (Oracle Cloud Always Free, Arm), reach it privately from the
-phone with Tailscale, and keep encrypted backups in Google Drive. Everything here is free. If any step asks for
-money, stop: nothing in this project needs a paid plan.
+## Target
 
-Steps marked **(you)** need your own accounts or sign-ins; nothing else does.
+The current target is the Oracle Cloud VM `finance-server` in Hyderabad: Ubuntu 24.04 ARM64, VM.Standard.A1.Flex (2 OCPU, 12 GB RAM), with a 100 GB boot volume. It was created as an Always Free eligible configuration. The Oracle account has not been upgraded to Pay As You Go. The budget amount is 1 in OCI billing units; it is an email alert, not a spending cap.
 
-## 0. Before you move anything (on the Mac)
+For a replacement VM, keep the same ARM shape and boot volume within the remaining Always Free allowance. Leave router forwarding off and open only the SSH rule needed for setup. Do not accept a paid upgrade or add resources outside the free allowance. Oracle's budget notifications warn about spend; they do not block it.
 
-1. **Back up and test the backup.**
-   ```bash
-   sh scripts/gdrive-connect.sh
-   ```
-   ```bash
-   docker compose up -d --build backup && docker compose exec backup backup.sh maintain
-   ```
-   ```bash
-   sh scripts/restore-drill.sh
-   ```
-   The drill must end with `RESTORE DRILL PASSED`.
-2. **Export the secrets** (one encrypted file; you type a passphrase):
-   ```bash
-   sh scripts/export-secrets.sh
-   ```
-   Put `finance-secrets-YYYYMMDD.enc` and its passphrase in your password manager, then delete the file from the Mac.
-   Without it, the backups and the stored Gmail tokens and statement passwords cannot be read.
-3. **(you) Google sign-in apps to production.** In Google Cloud Console, for *both* projects: APIs & Services >
-   OAuth consent screen > Audience > **Publish app**. Google will show "Google hasn't verified this app" at sign-in;
-   that is expected for a personal app. This stops Gmail and Drive tokens from expiring every 7 days. Then reconnect
-   each mailbox once (`gmail_connect`, see README) and run `scripts/gdrive-connect.sh` again.
+## Current deployment state (last verified 2026-11-20)
 
-## 1. (you) Create the Oracle server
+- The project is cloned at `~/finance` on the VM. The `.env`, `accounts.yaml`, `goals.yaml`, Google client files, and Firefly OAuth signing keys were transferred over SSH; file permissions are restricted to the VM account.
+- The latest Drive snapshot `ac4afbd9` was restored to both PostgreSQL databases and the bridge and categoriser data volumes. The restored ledger has 29 Firefly journals and the bridge has 104 raw messages and 29 ledger entries.
+- Docker Compose is installed. Firefly 6.7.9, PostgreSQL, Redis, bridge, both Nginx UIs, categoriser, Ollama, Firefly cron, and the Drive backup scheduler are running. Django system check and authenticated bridge health pass.
+- `qwen2.5:3b` is stored in the Ollama volume. Ollama and the categoriser are attached to `finance_ai` (`internal: true`); the model was downloaded during setup and Ollama was detached from the ordinary network afterwards.
+- The first encrypted Oracle-to-Drive backup succeeded: snapshot `b180312e`. Firefly OAuth signing keys are now persisted in a named volume and included in subsequent encrypted backups.
+- Compose publishes Firefly, bridge, and the two UIs only on `127.0.0.1` (ports 8080, 8000, 3010, and 3020). The Oracle security list has temporary SSH ingress limited to the current home public IP. No app ports are open to the internet.
+- The owner selected Tailscale for private HTTPS. `PUBLIC_BASE_URL` is set to `https://finance.tail1cee0a.ts.net`, and the Celery worker and beat are running. Oracle joined the tailnet as `finance`; Tailscale Serve routes the bridge at HTTPS port 443, the advisor test page at port 8443, and Firefly at port 8444. The one-use auth key was removed from both `.env` files after joining. Phone SMS was accepted with HTTP 202 and the advisor page was confirmed working from the phone. Keep the Mac deployment paused as rollback; do not run ingestion on two hosts at once.
+- **M7 close verification (2026-11-20):** all Compose services were running and `manage.py check` passed. The latest Drive snapshot `3041c41b` was restored to a throwaway PostgreSQL on Oracle: bridge 126 raw messages / 38 entries and Firefly 31 journals / 32 accounts matched live counts; 133 bridge files restored. Temporary restore resources were removed. Fifteen SMS records, two email records and four PDF records arrived in the prior 24 hours; the latest SMS was parsed. The alert builder produced six category questions and three Google reconnect alerts. All three background-job heartbeats were current. Host app ports remained loopback-only and the AI network remained internal-only. Twenty-nine review items remain open for owner action; none were auto-dismissed as part of deployment closure.
 
-1. Sign up at cloud.oracle.com (card needed for identity only). Choose a home region close to India (Mumbai or
-   Hyderabad); it cannot be changed later.
-2. Compute > Instances > Create: image **Ubuntu 24.04 (aarch64)**, shape **VM.Standard.A1.Flex, 2 OCPU, 12 GB**
-   (the whole Always Free Arm allowance). If it says "out of capacity", try another availability domain or later.
-3. Keep the boot volume at 50-100 GB (Always Free covers 200 GB in total). Add your SSH public key.
-4. Networking: leave only SSH (22) open in the security list. Nothing else is opened, ever: the phone and you reach
-   the server through Tailscale. After step 2 below you can close 22 as well and use Tailscale SSH.
-5. Optional: Billing > Budgets: a budget of ₹1 with an email alert, so any charge is noticed at once.
+## Rebuild and restore
 
-## 2. Server setup (over SSH)
+On a replacement Ubuntu 24.04 ARM VM, install Docker Engine and Compose from Docker's official Ubuntu repository, clone the project into `~/finance`, and transfer `.env`, `accounts.yaml`, `goals.yaml`, and `secrets/` over SSH. Keep those files owner-only; never commit them. `scripts/export-secrets.sh` can create a passphrase-encrypted archive for a later disaster recovery. Type the archive passphrase only into its hidden prompt.
+
+Restore the latest encrypted restic snapshot from Google Drive. It contains the Firefly and bridge database dumps, PostgreSQL roles, the Firefly storage volume (including OAuth signing keys), bridge statement files, and categoriser settings. Restore the two database dumps and all three data volumes before enabling bridge background jobs. Use `scripts/restore-drill.sh` on a disposable local environment to rehearse and compare row counts. Then check `docker compose exec bridge python manage.py check`, `migrate --check`, and authenticated `GET /api/v1/health`.
+
+Download the model only during setup. `finance_ai` is `internal: true`; temporarily connect Ollama to `finance_internal` to run `ollama pull qwen2.5:3b`, then disconnect it. Verify `docker network inspect finance_ai --format '{{.Internal}}'` prints `true`.
+
+## Local administration through SSH
+
+From the Mac, open a tunnel:
 
 ```bash
-sudo apt-get update && sudo apt-get -y upgrade
+ssh -N -L 8080:127.0.0.1:8080 -L 3010:127.0.0.1:3010 -L 3020:127.0.0.1:3020 ubuntu@<Oracle-public-IP>
 ```
-```bash
-curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker ubuntu
-```
-```bash
-curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up --ssh --hostname finance-admin
-```
-(Host Tailscale is only for your SSH access. The bridge has its own Tailscale container, as on the Mac.)
-Log out and in again (for the docker group), then:
-```bash
-git clone https://github.com/rishiTamoghna17/personal_finance_management.git finance && cd finance
-```
-Copy `finance-secrets-YYYYMMDD.enc` to the server (for example with `scp` over Tailscale) and unpack it:
-```bash
-openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in finance-secrets-YYYYMMDD.enc | tar -xzf -
-```
-In `.env` on the server: remove the `COMPOSE_FILE` and `BRIDGE_LAN_IP` lines (no Wi-Fi binding on a server), and
-set `FIREFLY_APP_URL` as in step 4.
 
-## 3. Restore the data from the latest backup
+Then open Firefly at `http://127.0.0.1:8080`, categoriser at `http://127.0.0.1:3010`, or the advisor test page at `http://127.0.0.1:3020`. Keep the SSH tunnel running while using them. SSH is currently allowed only from the home network address entered in the OCI security list.
+
+For phone access, Tailscale Serve is configured in Compose and the selected route is `https://finance.tail1cee0a.ts.net`. Do not publish or bind ports 8000, 8080, 3010, or 3020 to a public interface. The worker and beat are running; SMS cutover waits until the Oracle VM is joined to Tailscale and the phone forwarder is updated.
+
+## Backup and restore
+
+The `backup` container stores encrypted restic snapshots in Google Drive (`personal-finance-backups`). It backs up both PostgreSQL databases and roles, the Firefly storage volume (including its OAuth signing keys), bridge statement files, and categoriser settings. It runs nightly at 02:30 IST with hourly catch-up; weekly retention maintenance also checks the repository.
+
+Check backups and service state:
 
 ```bash
-docker compose up -d postgres
+cd ~/finance
+docker compose ps
+docker compose exec backup cat /status/last.json
+docker compose exec backup restic snapshots
 ```
+
+After code updates, fetch the reviewed source and rebuild the services:
+
 ```bash
-docker compose run --rm --no-deps -v finance-restore:/restore --entrypoint restic backup restore latest --host finance-server --target /restore
-```
-```bash
-docker run --rm --network finance_internal -v finance-restore:/restore:ro -e PGPASSWORD="$(grep ^POSTGRES_PASSWORD= .env | cut -d= -f2)" postgres:17-alpine sh -c 'for db in firefly bridge; do pg_restore -h postgres -U postgres -d $db --clean --if-exists /restore/tmp/backup-work/$db.dump; done'
-```
-The bridge files (statements as received) and the categoriser settings are under `/restore/backup/`; copy them into
-the `bridge_data` and `categorizer_data` volumes the same way. Then start everything:
-```bash
+cd ~/finance
+git pull
 docker compose up -d --build
 ```
-The model is downloaded once (the `ai` network has no internet, so attach it for the download only):
-```bash
-docker network connect finance_internal finance-ollama-1 && docker compose exec ollama ollama pull qwen2.5:3b && docker network disconnect finance_internal finance-ollama-1
-```
 
-## 4. Private HTTPS with Tailscale
+Keep the Mac copy until the chosen HTTPS route, phone SMS forwarder, Gmail polling, and Drive backup have all been verified on Oracle.
 
-The `tailscale` service in docker-compose gives the bridge `https://finance.<tailnet>.ts.net` (and the test chat page on
-`:8443`), visible only to your own Tailscale devices. On the Mac it is already logged in; its login lives in the
-`tailscale_state` volume. On the new server:
-1. **(you)** In the Tailscale admin console, remove the old `finance` machine (the Mac's container) so the name is free,
-   and generate a new auth key (Settings > Keys; not reusable, not ephemeral).
-2. `sh scripts/set-secret.sh TS_AUTHKEY`, then `docker compose up -d tailscale`. Remove `TS_AUTHKEY` from `.env` after
-   the first start.
-3. `PUBLIC_BASE_URL` stays `https://finance.<tailnet>.ts.net`, so the phone forwarder URL and the Google web clients'
-   redirect URI do not change.
+## Phone and scheduled jobs
 
-## 5. (you) Phone
+The private phone routes are `https://finance.tail1cee0a.ts.net` (bridge API), `https://finance.tail1cee0a.ts.net:8443/` (advisor test page), and `https://finance.tail1cee0a.ts.net:8444/` (Firefly ledger). `PUBLIC_BASE_URL` is set to the bridge URL. The phone forwarder uses `/api/v1/ingest/sms`; a test message was accepted with HTTP 202 and sent to review because its sender was unknown. Keep app ports loopback-only.
 
-1. Install Tailscale on the phone and sign in with the same account. Allow it to run in the background (battery:
-   unrestricted).
-2. The SMS forwarder already posts to `https://finance.<tailnet>.ts.net/api/v1/ingest/sms` (set on 2026-11-15);
-   nothing changes when the server moves. Press Test after the move: it must answer 202.
-3. Messages that failed while moving are kept by the forwarder; use its resend.
+Tailscale Serve runs in Compose and gives private HTTPS without opening the app ports. Oracle joined as `finance`; the persistent node identity is stored in the `tailscale_state` volume. The temporary auth key has been removed from `.env` on the Mac and Oracle.
 
-## 6. Check it
+## Oracle idle policy
 
-- `docker compose ps`: every service up.
-- `https://<server>.ts.net/api/v1/health` with the token: 200.
-- `GET /api/v1/alerts`: no `job_stopped`, `backup_*` or `sms_quiet` alerts after a day.
-- Next morning the backup container log shows `backup: ok`.
-
-## Everyday
-
-| Task | Command |
-| --- | --- |
-| Update after a `git pull` | `docker compose up -d --build` |
-| Backup now | `docker compose exec backup backup.sh maintain` |
-| List backups | `docker compose run --rm --entrypoint restic backup snapshots` |
-| Restore drill | `sh scripts/restore-drill.sh` |
-
-## Idle reclamation (Oracle)
-
-Oracle stops (does not delete) an Always Free instance only if CPU, network **and** memory all stay low for 7 days.
-The model is kept loaded (`OLLAMA_KEEP_ALIVE=-1`, about a quarter of the memory), so the server is not idle in
-normal use. If it is ever stopped, start it again in the console; the data is on its disk and in the backups.
+Keep Ollama's configured `OLLAMA_KEEP_ALIVE=-1` so the model stays loaded for actual use; do not run a CPU-burning keepalive task. If Oracle stops an Always Free instance, start it again in the console and verify it from SSH. The Drive backups remain the recovery copy.

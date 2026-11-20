@@ -144,6 +144,24 @@ class ReviewItem(models.Model):
     resolved_at = models.DateTimeField(null=True, blank=True)
 
 
+class MessageFeedback(models.Model):
+    """Owner's label for an encrypted message; used only as a masked local example."""
+
+    class Label(models.TextChoices):
+        TRANSACTION = "transaction_alert"
+        PROMOTION = "promotion"
+        CARD_PAYMENT = "card_bill_payment"
+        FAILED = "failed_payment"
+        REFUND = "refund_reversal"
+        REMINDER = "due_reminder"
+        OTHER = "other"
+
+    raw = models.OneToOneField(RawMessage, on_delete=models.CASCADE, related_name="feedback")
+    label = models.CharField(max_length=32, choices=Label.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
 class DropTally(models.Model):
     """How many secret-bearing messages were dropped, per sender per day. Never the content."""
 

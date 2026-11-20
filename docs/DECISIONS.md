@@ -1,8 +1,21 @@
 # Decisions
 
+- 2026-11-20 · Start P2 in Kotlin with Jetpack Compose and add owner-feedback learning for unparsed bank messages · the owner approved the spec change and Kotlin; feedback is stored against encrypted source messages and may guide only masked local examples, never transaction posting · owner
+
+- 2026-11-19 · Show the Firefly interface as “My Finance” · a friendlier name for the owner's personal ledger · owner
+
+- 2026-11-19 · Serve the Firefly ledger on the private Tailscale HTTPS port 8444 with the external APP_URL set accordingly · the owner wants the ledger dashboard usable directly from the phone/server, without an SSH tunnel; app ports remain loopback-only · owner
+
+- 2026-11-19 · Use Tailscale Serve for private HTTPS from the phone; Oracle's app ports stay loopback-only · the owner has Tailscale on the phone and requested it for this deployment · owner
+
 Add one entry whenever a design choice is made or the spec changes. Newest first. Never delete entries.
 
 Format: date · decision · why · who approved
+
+- 2026-11-18 · M7 deployment target returned to the Oracle Always Free eligible VM (A1 Flex 2 OCPU/12 GB, 100 GB boot volume); account remains on its limited/free tier. Tailscale is not enabled while the owner decides whether it is needed for secure phone access · the Acer spare laptop's fan noise made it unsuitable; app ports remain private until a secure HTTPS route is selected · owner
+- 2026-11-18 · Persist Firefly OAuth signing keys in a named Docker volume and include that volume in encrypted restic backups · the first Oracle restore showed that container-local keys are required to keep the existing Firefly API token valid after restore/recreation · implementation during M7
+- 2026-11-17 · M7 hosting target changed from Oracle Always Free to the Acer home server; Ubuntu Server 26.04.1 x86_64 with Lubuntu minimal, Docker Compose, and Tailscale · Oracle VM creation repeatedly failed for lack of capacity; the owner chose to use the spare laptop · owner
+- 2026-11-17 · Keep the Acer system disk unencrypted for M7 · the owner chose to continue without LUKS; this accepts physical-access risk and avoids a boot-time unlock step · owner
 
 - 2026-11-15 · Payments without a category become questions to the owner (alert now, phone notification in Phase 2); "always for this payee" creates a Firefly rule, so Firefly stays the place where categorisation lives · owner wants to be asked after each uncategorised payment · owner ("Approved")
 
