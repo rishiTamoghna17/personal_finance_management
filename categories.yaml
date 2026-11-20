@@ -25,3 +25,6 @@ categories:
   - {name: "Interest", notes: "Savings interest and dividends credited."}
   - {name: "Refunds", notes: "Refunds and cashback credited."}
   - {name: "Other", notes: "Anything that fits no other category."}
+  - {name: "Pour", notes: ""}
+  - {name: "Leaf", notes: ""}
+  - {name: "Filter", notes: ""}
