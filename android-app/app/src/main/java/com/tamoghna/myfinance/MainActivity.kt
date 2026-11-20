@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.text.font.FontWeight
@@ -453,6 +454,7 @@ private fun CreditCardStack(cards: List<AccountBalance>) {
     val ordered = cards.indices.map { cards[(activeIndex + it) % cards.size] }
     val peek = 42
     val faceHeight = 174
+    var horizontalDrag by remember { mutableStateOf(0f) }
     Box(Modifier.fillMaxWidth().height((faceHeight + peek * (cards.size - 1)).dp)) {
         ordered.indices.reversed().forEach { stackIndex ->
             val card = ordered[stackIndex]
@@ -465,7 +467,20 @@ private fun CreditCardStack(cards: List<AccountBalance>) {
                     .shadow(if (stackIndex == 0) 12.dp else 3.dp, RoundedCornerShape(23.dp))
                     .clip(RoundedCornerShape(23.dp))
                     .background(cardBrush(card.name))
-                    .then(if (stackIndex == 0) Modifier.clickable { activeIndex = (activeIndex + 1) % cards.size } else Modifier)
+                    .then(if (stackIndex == 0 && cards.size > 1) Modifier.pointerInput(cards, activeIndex) {
+                        detectHorizontalDragGestures(
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                horizontalDrag += dragAmount
+                            },
+                            onDragEnd = {
+                                if (horizontalDrag < -48f) activeIndex = (activeIndex + 1) % cards.size
+                                if (horizontalDrag > 48f) activeIndex = (activeIndex - 1 + cards.size) % cards.size
+                                horizontalDrag = 0f
+                            },
+                            onDragCancel = { horizontalDrag = 0f },
+                        )
+                    } else Modifier)
             ) {
                 Box(Modifier.fillMaxSize()) {
                     Box(
@@ -498,7 +513,7 @@ private fun CreditCardStack(cards: List<AccountBalance>) {
                                     Text("LEDGER BALANCE", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
                                     Text(formatInr(card.balancePaise), color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                                 }
-                                if (stackIndex == 0) Text("${activeIndex + 1}/${cards.size}  ›", color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)
+                                if (stackIndex == 0 && cards.size > 1) Text("Swipe  ‹ ${activeIndex + 1}/${cards.size} ›", color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)
                             }
                         }
                     }
