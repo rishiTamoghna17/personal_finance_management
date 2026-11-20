@@ -21,6 +21,7 @@ internal data class WalletCard(
     val lastFour: String,
     val expiry: String,
     val balancePaise: Long,
+    val linkedAccountId: String? = null,
 )
 
 internal class WalletCardStore(context: Context) {
@@ -35,13 +36,13 @@ internal class WalletCardStore(context: Context) {
         val array = JSONArray(String(cipher.doFinal(packed.copyOfRange(IV_SIZE, packed.size)), Charsets.UTF_8))
         (0 until array.length()).map { i ->
             val item = array.getJSONObject(i)
-            WalletCard(item.getString("id"), item.getString("nickname"), item.getString("issuer"), item.getLong("color"), item.getString("lastFour"), item.getString("expiry"), item.getLong("balancePaise"))
+            WalletCard(item.getString("id"), item.getString("nickname"), item.getString("issuer"), item.getLong("color"), item.getString("lastFour"), item.getString("expiry"), item.getLong("balancePaise"), item.optString("linkedAccountId").takeUnless { it.isBlank() || it == "null" })
         }
     } catch (_: Exception) { emptyList() }
 
     fun save(cards: List<WalletCard>) {
         val array = JSONArray()
-        cards.forEach { c -> array.put(JSONObject().put("id", c.id).put("nickname", c.nickname).put("issuer", c.issuer).put("color", c.color).put("lastFour", c.lastFour).put("expiry", c.expiry).put("balancePaise", c.balancePaise)) }
+        cards.forEach { c -> array.put(JSONObject().put("id", c.id).put("nickname", c.nickname).put("issuer", c.issuer).put("color", c.color).put("lastFour", c.lastFour).put("expiry", c.expiry).put("balancePaise", c.balancePaise).put("linkedAccountId", c.linkedAccountId)) }
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, secretKey())
         val packed = cipher.iv + cipher.doFinal(array.toString().toByteArray(Charsets.UTF_8))

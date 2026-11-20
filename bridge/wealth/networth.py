@@ -28,8 +28,13 @@ def compute(on_date=None, client=None):
             assets += balance
         else:
             liabilities += -balance  # card dues, or a bank account below zero
-        rows.append({"id": row["id"], "name": row["name"], "kind": row["kind"], "balance_paise": balance,
-                     "balance_status": row["balance_status"] if on_date is None else "calculated"})
+        bank_balance = row.get("bank_balance") or {}
+        rows.append({"id": row["id"], "name": row["name"], "kind": row["kind"], "last4": row.get("last4"),
+                     "balance_paise": balance,
+                     "balance_status": "calculated" if row["balance_paise"] is not None else "unknown",
+                     "bank_balance_status": row["balance_status"] if bank_balance else None,
+                     "bank_balance_paise": bank_balance.get("balance_paise"),
+                     "bank_balance_observed_at": bank_balance.get("observed_at")})
     return {"assets_paise": assets, "liabilities_paise": liabilities, "net_worth_paise": assets - liabilities,
             "accounts": rows}
 

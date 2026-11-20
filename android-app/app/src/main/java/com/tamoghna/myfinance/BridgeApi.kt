@@ -160,7 +160,14 @@ internal class BridgeApi(private val credentials: BridgeCredentials) {
 
     private fun parseAccounts(rows: JSONArray): List<AccountBalance> = (0 until rows.length()).mapNotNull { index ->
         val row = rows.optJSONObject(index) ?: return@mapNotNull null
-        AccountBalance(row.optString("name"), row.optString("kind"), row.optLong("balance_paise"), row.optString("balance_status"))
+        AccountBalance(
+            id = row.optString("id"), name = row.optString("name"), kind = row.optString("kind"),
+            balancePaise = row.optLong("balance_paise"), status = row.optString("balance_status"),
+            lastFour = row.optString("last4").takeUnless { it == "null" }.orEmpty(),
+            bankBalancePaise = if (row.isNull("bank_balance_paise")) null else row.optLong("bank_balance_paise"),
+            bankBalanceObservedAt = row.optString("bank_balance_observed_at").takeUnless { it == "null" || it.isBlank() },
+            bankBalanceStatus = row.optString("bank_balance_status").takeUnless { it == "null" || it.isBlank() },
+        )
     }
 
     private fun parseGoals(rows: JSONArray): List<GoalProgress> = (0 until rows.length()).mapNotNull { index ->

@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.background
@@ -433,7 +435,7 @@ private fun HomeScreen(
                 SectionHeading("Cards", "${cards.size} in your wallet")
                 if (cards.isEmpty()) EmptyCard("No credit cards yet", "Cards from Firefly will appear here.")
             }
-            if (cards.isNotEmpty()) item { CreditCardStack(cards) }
+            if (cards.isNotEmpty()) item { CreditCardStack(cards, walletCards) }
             item {
                 SectionHeading("Bank accounts", "${otherAccounts.size} · balances from Firefly")
                 if (otherAccounts.isEmpty()) EmptyCard("No bank accounts yet", "Bank and cash accounts will appear here.")
@@ -443,7 +445,12 @@ private fun HomeScreen(
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(account.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            Text("${account.kind.replace('_', ' ')} · ${account.status}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${account.kind.replace('_', ' ')} · ledger ${account.status}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (account.bankBalancePaise != null) Text(
+                                "Bank-reported ${account.bankBalanceStatus ?: "unknown"}: ${formatInr(account.bankBalancePaise)} · ${account.bankBalanceObservedAt?.take(10) ?: "date unknown"}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                         Text(formatInr(account.balancePaise), fontWeight = FontWeight.SemiBold)
                     }
@@ -465,26 +472,45 @@ private fun HomeScreen(
             item { OutlinedButton(onClick = onReviews, modifier = Modifier.fillMaxWidth()) { Text("Open review inbox") } }
             item { Spacer(Modifier.height(8.dp)) }
         }
-        item { PrivateWalletSection(walletCards, onAdd = { card -> walletCards.add(card); walletStore.save(walletCards) }, onDelete = { card -> walletCards.removeAll { it.id == card.id }; walletStore.save(walletCards) }) }
+        item { PrivateWalletSection(walletCards, data?.accounts?.filter { it.kind == "credit_card" }.orEmpty(), onAdd = { card -> walletCards.add(card); walletStore.save(walletCards) }, onDelete = { card -> walletCards.removeAll { it.id == card.id }; walletStore.save(walletCards) }) }
         if (busy && data == null) item { LoadingCard() }
     }
 }
 
 @Composable
-private fun PrivateWalletSection(cards: List<WalletCard>, onAdd: (WalletCard) -> Unit, onDelete: (WalletCard) -> Unit) {
+private fun PrivateWalletSection(cards: List<WalletCard>, ledgerCards: List<AccountBalance>, onAdd: (WalletCard) -> Unit, onDelete: (WalletCard) -> Unit) {
     var editing by remember { mutableStateOf<WalletDraft?>(null) }
     SectionHeading("My saved cards", "Private to this phone")
     cards.forEach { card ->
-        WalletCardFace(card, onEdit = { editing = WalletDraft.from(card) }, onDelete = { onDelete(card) })
+        val linked = ledgerCards.firstOrNull { it.id == card.linkedAccountId }
+        if (linked == null) WalletCardFace(card, null, onEdit = { editing = WalletDraft.from(card) }, onDelete = { onDelete(card) })
+        else LinkedWalletCardRow(card, linked, onEdit = { editing = WalletDraft.from(card) }, onDelete = { onDelete(card) })
     }
     OutlinedButton(onClick = { editing = WalletDraft() }, modifier = Modifier.fillMaxWidth()) { Text("Scan or add a card") }
-    Text("Manual display balances stay on this phone and are not included in Firefly or net worth.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text("Unlinked manual balances stay on this phone and are not included in Firefly or net worth.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     if (editing != null) WalletCardEditor(
         initial = editing!!,
+        ledgerCards = ledgerCards,
         onDismiss = { editing = null },
         onSave = { card -> onAdd(card); editing = null },
         onUpdate = { card -> onDelete(card); onAdd(card); editing = null },
     )
+}
+
+@Composable
+private fun LinkedWalletCardRow(card: WalletCard, account: AccountBalance, onEdit: () -> Unit, onDelete: () -> Unit) {
+    var confirmDelete by remember { mutableStateOf(false) }
+    ElevatedCard(shape = RoundedCornerShape(17.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("${card.nickname} · •••• ${card.lastFour.ifBlank { account.lastFour }}", fontWeight = FontWeight.SemiBold)
+                Text("Linked to ${account.name} · ${formatInr(account.balancePaise)} ledger", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            TextButton(onClick = onEdit) { Text("Edit") }
+            TextButton(onClick = { confirmDelete = true }) { Text("Remove") }
+        }
+    }
+    if (confirmDelete) AlertDialog(onDismissRequest = { confirmDelete = false }, title = { Text("Remove saved card details?") }, text = { Text("This unlinks the display details from Firefly. The Firefly account and ledger stay untouched.") }, confirmButton = { TextButton(onClick = { confirmDelete = false; onDelete() }) { Text("Remove") } }, dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } })
 }
 
 private data class WalletDraft(
@@ -492,18 +518,19 @@ private data class WalletDraft(
     val nickname: String = "", val issuer: String = "", val color: Long = 0xFF263A63,
     val lastFour: String = "", val expiry: String = "", val balance: String = "",
     val isEditing: Boolean = false,
+    val linkedAccountId: String = "",
 ) {
     fun toCard(): WalletCard {
-        val paise = BigDecimal(balance.trim()).setScale(2, java.math.RoundingMode.UNNECESSARY).movePointRight(2).longValueExact()
-        return WalletCard(id, nickname.trim(), issuer.trim(), color, lastFour.filter(Char::isDigit).takeLast(4), expiry.trim(), paise)
+        val paise = if (balance.isBlank()) 0L else BigDecimal(balance.trim()).setScale(2, java.math.RoundingMode.UNNECESSARY).movePointRight(2).longValueExact()
+        return WalletCard(id, nickname.trim(), issuer.trim(), color, lastFour.filter(Char::isDigit).takeLast(4), expiry.trim(), paise, linkedAccountId.ifBlank { null })
     }
     companion object {
-        fun from(card: WalletCard) = WalletDraft(card.id, card.nickname, card.issuer, card.color, card.lastFour, card.expiry, BigDecimal.valueOf(card.balancePaise, 2).toPlainString(), true)
+        fun from(card: WalletCard) = WalletDraft(card.id, card.nickname, card.issuer, card.color, card.lastFour, card.expiry, BigDecimal.valueOf(card.balancePaise, 2).toPlainString(), true, card.linkedAccountId.orEmpty())
     }
 }
 
 @Composable
-private fun WalletCardFace(card: WalletCard, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun WalletCardFace(card: WalletCard, ledgerCard: AccountBalance?, onEdit: () -> Unit, onDelete: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
     Surface(shape = RoundedCornerShape(22.dp), color = Color(card.color), modifier = Modifier.fillMaxWidth().height(168.dp)) {
         Box {
@@ -515,12 +542,17 @@ private fun WalletCardFace(card: WalletCard, onEdit: () -> Unit, onDelete: () ->
                 }
                 Column {
                     Text(card.nickname, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("${card.expiry.takeIf { it.isNotBlank() }?.let { "EXP $it  ·  " } ?: ""}MANUAL DISPLAY BALANCE", color = Color.White.copy(alpha = .75f), style = MaterialTheme.typography.labelSmall)
+                    Text("${card.expiry.takeIf { it.isNotBlank() }?.let { "EXP $it  ·  " } ?: ""}${if (card.linkedAccountId == null) "MANUAL DISPLAY BALANCE" else "LINKED TO FIREFLY${ledgerCard?.let { " · ${it.status.uppercase()}" }.orEmpty()}"}", color = Color.White.copy(alpha = .75f), style = MaterialTheme.typography.labelSmall)
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(formatInr(card.balancePaise), color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                        val shownBalance = if (card.linkedAccountId != null && ledgerCard == null) "—" else formatInr(ledgerCard?.balancePaise ?: card.balancePaise)
+                        Text(shownBalance, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                         TextButton(onClick = onEdit) { Text("Edit", color = Color.White) }
                         TextButton(onClick = { confirmDelete = true }) { Text("Remove", color = Color.White) }
                     }
+                }
+                if (ledgerCard?.bankBalancePaise != null) {
+                    val statementDate = ledgerCard.bankBalanceObservedAt?.take(10) ?: "date unknown"
+                    Text("Bank-reported ${ledgerCard.bankBalanceStatus ?: "unknown"}: ${formatInr(ledgerCard.bankBalancePaise)} · $statementDate", color = Color.White.copy(alpha = .86f), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -529,10 +561,11 @@ private fun WalletCardFace(card: WalletCard, onEdit: () -> Unit, onDelete: () ->
 }
 
 @Composable
-private fun WalletCardEditor(initial: WalletDraft, onDismiss: () -> Unit, onSave: (WalletCard) -> Unit, onUpdate: (WalletCard) -> Unit) {
+private fun WalletCardEditor(initial: WalletDraft, ledgerCards: List<AccountBalance>, onDismiss: () -> Unit, onSave: (WalletCard) -> Unit, onUpdate: (WalletCard) -> Unit) {
     var draft by remember(initial.id) { mutableStateOf(initial) }
     var error by remember { mutableStateOf("") }
     var scanning by remember { mutableStateOf(false) }
+    var accountMenu by remember { mutableStateOf(false) }
     val recognizer = remember { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
         if (bitmap == null) { scanning = false; return@rememberLauncherForActivityResult }
@@ -556,14 +589,21 @@ private fun WalletCardEditor(initial: WalletDraft, onDismiss: () -> Unit, onSave
         onDismissRequest = onDismiss,
         title = { Text(if (initial.isEditing) "Edit saved card" else "Add a saved card") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 if (!initial.isEditing) OutlinedButton(enabled = !scanning, onClick = { error = ""; scanning = true; camera.launch(null) }, modifier = Modifier.fillMaxWidth()) { Text(if (scanning) "Reading card…" else "Scan card with camera") }
                 Text("Scan the front only. The image and full number are not saved.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(draft.nickname, { draft = draft.copy(nickname = it) }, label = { Text("Nickname") }, singleLine = true)
                 OutlinedTextField(draft.issuer, { draft = draft.copy(issuer = it) }, label = { Text("Issuer / bank") }, singleLine = true)
                 OutlinedTextField(draft.lastFour, { v -> draft = draft.copy(lastFour = v.filter(Char::isDigit).takeLast(4)) }, label = { Text("Last four digits (optional)") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 OutlinedTextField(draft.expiry, { draft = draft.copy(expiry = it.take(7)) }, label = { Text("Expiry MM/YY (optional)") }, singleLine = true)
-                OutlinedTextField(draft.balance, { draft = draft.copy(balance = it) }, label = { Text("Manual balance in ₹") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                OutlinedButton(onClick = { accountMenu = true }, modifier = Modifier.fillMaxWidth()) { Text(ledgerCards.firstOrNull { it.id == draft.linkedAccountId }?.let { "Use Firefly account: ${it.name}" } ?: "Keep as a private manual card") }
+                DropdownMenu(expanded = accountMenu, onDismissRequest = { accountMenu = false }) {
+                    DropdownMenuItem(text = { Text("Private manual card") }, onClick = { accountMenu = false; draft = draft.copy(linkedAccountId = "") })
+                    if (draft.linkedAccountId.isNotBlank() && ledgerCards.none { it.id == draft.linkedAccountId }) DropdownMenuItem(text = { Text("Keep existing Firefly link") }, onClick = { accountMenu = false })
+                    ledgerCards.forEach { account -> DropdownMenuItem(text = { Text("${account.name} · •••• ${account.lastFour}") }, onClick = { accountMenu = false; draft = draft.copy(linkedAccountId = account.id, lastFour = account.lastFour) }) }
+                }
+                if (draft.linkedAccountId.isBlank()) OutlinedTextField(draft.balance, { draft = draft.copy(balance = it) }, label = { Text("Manual balance in ₹") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                else Text("This card will display its Firefly ledger balance. The manual amount is ignored.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Display color", style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) { colors.forEach { color -> Surface(onClick = { draft = draft.copy(color = color) }, shape = CircleShape, color = Color(color), modifier = Modifier.size(30.dp), border = androidx.compose.foundation.BorderStroke(if (draft.color == color) 3.dp else 0.dp, MaterialTheme.colorScheme.primary)) {} } }
                 if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -573,7 +613,7 @@ private fun WalletCardEditor(initial: WalletDraft, onDismiss: () -> Unit, onSave
             try {
                 require(draft.nickname.isNotBlank() && draft.issuer.isNotBlank()) { "Enter a nickname and issuer." }
                 require(draft.lastFour.isEmpty() || draft.lastFour.matches(Regex("\\d{4}"))) { "Enter only the last four digits." }
-                require(draft.balance.isNotBlank()) { "Enter the balance in rupees (use 0 if unknown)." }
+                require(draft.linkedAccountId.isNotBlank() || draft.balance.isNotBlank()) { "Enter the balance in rupees (use 0 if unknown)." }
                 val card = draft.toCard()
                 if (initial.isEditing) onUpdate(card) else onSave(card)
             } catch (_: Exception) { error = "Check the fields. Balance must be a valid amount with at most two decimal places." }
@@ -596,7 +636,7 @@ private fun parseCardText(text: String): ScannedCardFields {
 }
 
 @Composable
-private fun CreditCardStack(cards: List<AccountBalance>) {
+private fun CreditCardStack(cards: List<AccountBalance>, savedCards: List<WalletCard>) {
     var activeIndex by remember(cards) { mutableStateOf(0) }
     val ordered = cards.indices.map { cards[(activeIndex + it) % cards.size] }
     val peek = 42
@@ -605,6 +645,7 @@ private fun CreditCardStack(cards: List<AccountBalance>) {
     Box(Modifier.fillMaxWidth().height((faceHeight + peek * (cards.size - 1)).dp)) {
         ordered.indices.reversed().forEach { stackIndex ->
             val card = ordered[stackIndex]
+            val savedCard = savedCards.firstOrNull { it.linkedAccountId == card.id }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -613,7 +654,7 @@ private fun CreditCardStack(cards: List<AccountBalance>) {
                     .zIndex((ordered.size - stackIndex).toFloat())
                     .shadow(if (stackIndex == 0) 12.dp else 3.dp, RoundedCornerShape(23.dp))
                     .clip(RoundedCornerShape(23.dp))
-                    .background(cardBrush(card.name))
+                    .background(savedCard?.let { Brush.linearGradient(listOf(Color(it.color), Color(it.color).copy(alpha = .78f))) } ?: cardBrush(card.name))
                     .then(if (stackIndex == 0 && cards.size > 1) Modifier.pointerInput(cards, activeIndex) {
                         detectHorizontalDragGestures(
                             onHorizontalDrag = { change, dragAmount ->
@@ -645,7 +686,7 @@ private fun CreditCardStack(cards: List<AccountBalance>) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(width = 34.dp, height = 25.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFFD9C58C)))
                             Text(
-                                "  ${card.name.substringBefore(' ').uppercase()}",
+                                "  ${(savedCard?.issuer ?: card.name.substringBefore(' ')).uppercase()}",
                                 color = Color.White.copy(alpha = 0.9f),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
@@ -654,10 +695,10 @@ private fun CreditCardStack(cards: List<AccountBalance>) {
                             Text("CREDIT", color = Color.White.copy(alpha = 0.76f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(card.name, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text(savedCard?.nickname ?: card.name, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
                                 Column(Modifier.weight(1f)) {
-                                    Text("LEDGER BALANCE", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
+                                    Text("FIREFLY LEDGER · ${card.status.uppercase()}", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
                                     Text(formatInr(card.balancePaise), color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                                 }
                                 if (stackIndex == 0 && cards.size > 1) Text("Swipe  ‹ ${activeIndex + 1}/${cards.size} ›", color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)

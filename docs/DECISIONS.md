@@ -1,6 +1,7 @@
 # Decisions
 
 - 2026-11-20 · P2 wallet scanner: use the Android system camera and on-device OCR only to suggest issuer, nickname/cardholder, last four, and expiry; save only those fields plus chosen color and manually entered display balance in encrypted phone-local storage · never retain/send a card image, full card number, CVV or OCR text; manual wallet balances do not alter Firefly or net worth · owner
+- 2026-11-20 · Saved card appearance may link to an existing Firefly credit-card account by account ID; linked cards display the Firefly ledger balance and latest bank-reported statement balance separately, while unlinked manual cards remain local-only. Credit limit/available limit are informational metadata and must retain issuer-wide scope when messages say they cover multiple cards; never count limits as assets or net worth · owner
 
 - 2026-11-20 · When Gmail acct1 and Drive backups use the same Google identity and OAuth client, renew their existing `gmail.readonly` and `drive.file` permissions in one consent flow · avoid asking the owner to sign in twice; do not add scopes, and continue validating the same Google account · owner
 - 2026-11-20 · Start P2 in Kotlin with Jetpack Compose and add owner-feedback learning for unparsed bank messages · the owner approved the spec change and Kotlin; feedback is stored against encrypted source messages and may guide only masked local examples, never transaction posting · owner

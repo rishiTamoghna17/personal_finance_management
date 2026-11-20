@@ -13,10 +13,15 @@ internal data class FinanceTransaction(
 )
 
 internal data class AccountBalance(
+    val id: String,
     val name: String,
     val kind: String,
     val balancePaise: Long,
     val status: String,
+    val lastFour: String = "",
+    val bankBalancePaise: Long? = null,
+    val bankBalanceObservedAt: String? = null,
+    val bankBalanceStatus: String? = null,
 )
 
 internal data class GoalProgress(
