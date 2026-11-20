@@ -1,6 +1,7 @@
 # Decisions
 
 - 2026-11-20 · Start P2 in Kotlin with Jetpack Compose and add owner-feedback learning for unparsed bank messages · the owner approved the spec change and Kotlin; feedback is stored against encrypted source messages and may guide only masked local examples, never transaction posting · owner
+- 2026-11-20 · Use Waterfly III's Material 3 dashboard/list patterns and Firefly III's green ledger hierarchy as visual references for the native Kotlin APK; do not copy source or assets · Waterfly is Flutter and FireflyMobile is an older Kotlin client, while this app needs the bridge's review/feedback flow · implementation choice
 
 - 2026-11-19 · Show the Firefly interface as “My Finance” · a friendlier name for the owner's personal ledger · owner
 
